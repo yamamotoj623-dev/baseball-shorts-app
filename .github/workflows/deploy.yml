@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [claude/baseball-management-game-d2267f]
+    branches: [main]
   workflow_dispatch:
 
 # Pages デプロイに必要な権限
