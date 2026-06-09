@@ -167,6 +167,17 @@ body {
   font-size: 11px;
   color: var(--muted);
 }
+.teamcard__depth {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.teamcard__names {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
 
 /* ---- コントロール ---- */
 .controls {
@@ -212,7 +223,9 @@ body {
   display: flex;
   gap: 10px;
   align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
+  margin-top: 10px;
 }
 .speed {
   display: flex;
@@ -273,26 +286,109 @@ body {
   left: 28px;
   background: #58606b;
 }
-.outs {
+/* ---- BSO ランプ ---- */
+.bso {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.bso__row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
-.out {
-  width: 12px;
-  height: 12px;
+.bso__label {
+  width: 14px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--muted);
+}
+.lamp {
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   border: 1px solid var(--line);
   background: transparent;
+  transition: background 0.15s, box-shadow 0.15s;
 }
-.out--on {
+.lamp--ball.lamp--on {
+  background: var(--green);
+  border-color: var(--green);
+  box-shadow: 0 0 8px rgba(63, 185, 80, 0.7);
+}
+.lamp--strike.lamp--on {
+  background: var(--gold);
+  border-color: var(--gold);
+  box-shadow: 0 0 8px rgba(227, 179, 65, 0.7);
+}
+.lamp--out.lamp--on {
   background: var(--red);
   border-color: var(--red);
+  box-shadow: 0 0 8px rgba(248, 81, 73, 0.7);
 }
-.outs__label {
-  font-size: 11px;
+
+/* ---- ライブパネル 右側 ---- */
+.live__matchup {
+  flex: 1 1 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.live__inning {
+  font-size: 13px;
   color: var(--muted);
-  margin-left: 2px;
+  font-weight: 700;
+}
+.live__score {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.live__score span {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 700;
+}
+.live__score strong {
+  font-size: 30px;
+  letter-spacing: 1px;
+}
+.live__vs {
+  font-size: 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.live__role {
+  font-size: 11px;
+  color: var(--bg);
+  background: var(--green);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 800;
+}
+.live__role--p {
+  background: var(--accent);
+  margin-left: 8px;
+}
+.live__pitch {
+  font-size: 15px;
+  color: var(--text);
+  min-height: 1.5em;
+  animation: pitchIn 0.18s ease-out;
+}
+@keyframes pitchIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ---- ログ ---- */
@@ -348,6 +444,40 @@ body {
 }
 .log__line--walk .log__text {
   color: #79c0ff;
+}
+.log__line--sub .log__text {
+  color: #56d4dd;
+  font-weight: 600;
+}
+.log__line--mound .log__text {
+  color: var(--muted);
+  font-style: italic;
+}
+.log__line--injury .log__text {
+  color: var(--red);
+  font-weight: 700;
+}
+.log__line--homerun {
+  animation: hrFlash 1.2s ease-out;
+}
+@keyframes hrFlash {
+  0% {
+    background: rgba(227, 179, 65, 0.35);
+  }
+  100% {
+    background: transparent;
+  }
+}
+.log__cursor {
+  display: inline-block;
+  margin-left: 1px;
+  color: var(--accent);
+  animation: blink 0.8s steps(1) infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
 }
 
 .app__footer {

@@ -44,6 +44,10 @@ export interface Team {
   lineup: Player[];
   /** 先発投手 */
   pitcher: Player;
+  /** 控え野手（代打・代走・守備固め・負傷交代に使う） */
+  bench: Player[];
+  /** 救援投手（継投に使う。末尾ほど勝ちパターン） */
+  bullpen: Player[];
 }
 
 /** 1試合の集計（簡易ボックススコア） */
@@ -56,7 +60,20 @@ export interface TeamLine {
   byInning: number[];
 }
 
-/** 実況ログ1行 */
+/** 実況イベントの種別（UIでの色分け・再生テンポ制御に使う） */
+export type EventKind =
+  | 'info' // イニング表示・チェンジ・試合終了
+  | 'pitch' // 1球（BSOランプ用。ログには残さない）
+  | 'hit'
+  | 'out'
+  | 'score'
+  | 'walk'
+  | 'homerun'
+  | 'mound' // マウンド集合などの間
+  | 'sub' // 継投・代打・代走・守備固め
+  | 'injury'; // 負傷・アクシデント
+
+/** 実況ログ1行（pitch はライブパネルのみで消費） */
 export interface GameEvent {
   /** イニング番号（1始まり） */
   inning: number;
@@ -70,8 +87,13 @@ export interface GameEvent {
   bases: [boolean, boolean, boolean];
   /** この時点のスコア [away, home] */
   score: [number, number];
-  /** イベント種別（UIでの色分け用） */
-  kind: 'info' | 'hit' | 'out' | 'score' | 'walk' | 'homerun';
+  kind: EventKind;
+  /** ボールカウント [ボール, ストライク]。打席進行中のみ */
+  count?: [number, number];
+  /** 現在の打者ラベル（例: 「4番 木村颯太」） */
+  batter?: string;
+  /** 現在の投手ラベル（例: 「高橋匠（52球）」） */
+  pitcherLabel?: string;
 }
 
 export interface GameResult {

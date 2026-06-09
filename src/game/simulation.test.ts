@@ -46,4 +46,43 @@ describe('simulateGame', () => {
     const last = result.events[result.events.length - 1];
     expect(last.text).toContain('試合終了');
   });
+
+  it('BSOカウントは常に正しい範囲（B0-3 / S0-2）', () => {
+    for (let seed = 0; seed < 20; seed++) {
+      const rng = createRng(seed + 100);
+      const { away, home } = generateMatchup(rng);
+      const result = simulateGame(away, home, seed * 13 + 5);
+      for (const ev of result.events) {
+        if (ev.kind === 'pitch' && ev.count) {
+          expect(ev.count[0]).toBeGreaterThanOrEqual(0);
+          expect(ev.count[0]).toBeLessThanOrEqual(3);
+          expect(ev.count[1]).toBeGreaterThanOrEqual(0);
+          expect(ev.count[1]).toBeLessThanOrEqual(2);
+        }
+        expect(ev.outs).toBeGreaterThanOrEqual(0);
+        expect(ev.outs).toBeLessThanOrEqual(3);
+      }
+    }
+  });
+
+  it('チームに控え野手とブルペンが生成される', () => {
+    const rng = createRng(1);
+    const { away, home } = generateMatchup(rng);
+    expect(away.bench.length).toBe(4);
+    expect(away.bullpen.length).toBe(3);
+    expect(home.bench.length).toBe(4);
+    expect(home.bullpen.length).toBe(3);
+    for (const p of away.bullpen) expect(p.pitches).toBeDefined();
+  });
+
+  it('多数試合のどこかで継投（sub イベント）が起きる', () => {
+    let subs = 0;
+    for (let seed = 0; seed < 30; seed++) {
+      const rng = createRng(seed + 500);
+      const { away, home } = generateMatchup(rng);
+      const result = simulateGame(away, home, seed * 31 + 9);
+      subs += result.events.filter((e) => e.kind === 'sub').length;
+    }
+    expect(subs).toBeGreaterThan(0);
+  });
 });

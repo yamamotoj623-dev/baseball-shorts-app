@@ -41,6 +41,15 @@ export function TeamCard({ team, side }: Props) {
           {team.pitcher.pitches!.stamina}
         </span>
       </div>
+
+      <div className="teamcard__depth">
+        <span className="teamcard__pos">ブルペン</span>
+        <span className="teamcard__names">{team.bullpen.map((p) => p.name).join('、')}</span>
+      </div>
+      <div className="teamcard__depth">
+        <span className="teamcard__pos">ベンチ</span>
+        <span className="teamcard__names">{team.bench.map((p) => p.name).join('、')}</span>
+      </div>
     </div>
   );
 }

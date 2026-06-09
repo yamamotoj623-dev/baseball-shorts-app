@@ -75,16 +75,54 @@ function makePitcher(rng: Rng, strength: number): Player {
   };
 }
 
+/** チーム内で名前が重複しないように振り直す */
+function dedupeNames(players: Player[], rng: Rng): void {
+  const used = new Set<string>();
+  for (const p of players) {
+    let guard = 0;
+    while (used.has(p.name) && guard < 50) {
+      p.name = makeName(rng);
+      guard += 1;
+    }
+    used.add(p.name);
+  }
+}
+
 /** 1チーム生成。strength でチーム全体の地力を調整（50が平均） */
 export function generateTeam(rng: Rng, meta: { name: string; short: string }, strength: number): Team {
   const lineup = FIELD_POSITIONS.map((pos) => makeBatter(rng, pos, strength));
   const pitcher = makePitcher(rng, strength);
+
+  // 控え野手: スタメンよりやや劣るが、守備・走力特化型が混ざる
+  const bench = Array.from({ length: 4 }, () => makeBatter(rng, rng.pick(FIELD_POSITIONS), strength - 6));
+
+  // 救援投手: スタミナは低め。末尾（抑え）は球威が高い
+  const bullpen = [
+    makeReliever(rng, strength - 4, 0),
+    makeReliever(rng, strength, 0),
+    makeReliever(rng, strength + 4, 8), // 抑え: 球速ボーナス
+  ];
+
+  dedupeNames([...lineup, pitcher, ...bench, ...bullpen], rng);
+
   return {
     name: meta.name,
     shortName: meta.short,
     lineup,
     pitcher,
+    bench,
+    bullpen,
   };
+}
+
+function makeReliever(rng: Rng, strength: number, velocityBonus: number): Player {
+  const p = makePitcher(rng, strength);
+  p.pitches = {
+    velocity: Math.min(99, p.pitches!.velocity + velocityBonus),
+    control: p.pitches!.control,
+    stamina: stat(rng, 32, 10), // 救援はスタミナ短め
+  };
+  return p;
 }
 
 /** 対戦する2チームを生成（チーム名は重複しないように選ぶ） */
