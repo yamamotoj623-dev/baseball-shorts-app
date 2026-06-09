@@ -1,0 +1,352 @@
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --panel-2: #1c2530;
+  --line: #2a3340;
+  --text: #e6edf3;
+  --muted: #8b97a6;
+  --accent: #2f81f7;
+  --green: #3fb950;
+  --gold: #e3b341;
+  --red: #f85149;
+  font-family: system-ui, -apple-system, 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px 14px 40px;
+}
+
+.app__header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.app__header h1 {
+  font-size: 22px;
+  margin: 0;
+}
+.app__tag {
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+/* ---- スコアボード ---- */
+.scoreboard {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  overflow-x: auto;
+}
+.linescore {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+.linescore th,
+.linescore td {
+  text-align: center;
+  padding: 4px 6px;
+  min-width: 22px;
+  color: var(--text);
+}
+.linescore thead th {
+  color: var(--muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--line);
+}
+.linescore__team {
+  text-align: left !important;
+  font-weight: 700;
+  min-width: 64px;
+}
+.linescore__total {
+  color: var(--gold) !important;
+  font-weight: 800;
+  border-left: 1px solid var(--line);
+}
+
+/* ---- プレビュー ---- */
+.preview {
+  margin-top: 16px;
+}
+.preview__cards {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+.preview__vs {
+  align-self: center;
+  font-weight: 800;
+  color: var(--muted);
+}
+.teamcard {
+  flex: 1 1 300px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+.teamcard__head {
+  margin-bottom: 8px;
+}
+.teamcard__side {
+  font-size: 11px;
+  color: var(--muted);
+}
+.teamcard__name {
+  margin: 2px 0 0;
+  font-size: 16px;
+}
+.roster {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.roster th {
+  color: var(--muted);
+  font-weight: 600;
+  text-align: center;
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.roster td {
+  text-align: center;
+  padding: 3px 4px;
+  border-bottom: 1px solid #21262d;
+}
+.roster__name {
+  text-align: left !important;
+  white-space: nowrap;
+}
+.roster__num,
+.roster__pos {
+  color: var(--muted);
+}
+.teamcard__pitcher {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.teamcard__pos {
+  font-size: 11px;
+  color: var(--muted);
+}
+.teamcard__pname {
+  font-weight: 700;
+}
+.teamcard__pstats {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ---- コントロール ---- */
+.controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  justify-content: center;
+}
+.btn {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.btn:hover {
+  border-color: var(--accent);
+}
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+/* ---- ライブ ---- */
+.live {
+  margin-top: 16px;
+}
+.live__status {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+.live__controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.speed {
+  display: flex;
+  gap: 6px;
+}
+.chip {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.chip--on {
+  background: var(--panel-2);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* ---- ダイヤモンド ---- */
+.diamond {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.diamond__field {
+  position: relative;
+  width: 72px;
+  height: 72px;
+}
+.base {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: #30363d;
+  border: 1px solid #444c56;
+  transform: rotate(45deg);
+}
+.base--on {
+  background: var(--gold);
+  border-color: var(--gold);
+}
+.base--second {
+  top: 0;
+  left: 28px;
+}
+.base--third {
+  top: 28px;
+  left: 0;
+}
+.base--first {
+  top: 28px;
+  right: 0;
+}
+.base--home {
+  bottom: 0;
+  left: 28px;
+  background: #58606b;
+}
+.outs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.out {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+}
+.out--on {
+  background: var(--red);
+  border-color: var(--red);
+}
+.outs__label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: 2px;
+}
+
+/* ---- ログ ---- */
+.log {
+  margin-top: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 10px;
+  height: 340px;
+  overflow-y: auto;
+  font-size: 14px;
+}
+.log__line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 4px;
+  border-bottom: 1px solid #21262d;
+}
+.log__meta {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 58px;
+}
+.log__text {
+  flex: 1 1 auto;
+}
+.log__score {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 12px;
+}
+.log__info {
+  color: var(--accent);
+  font-weight: 700;
+}
+.log__line--hit .log__text {
+  color: var(--green);
+}
+.log__line--homerun .log__text {
+  color: var(--gold);
+  font-weight: 800;
+}
+.log__line--score .log__text {
+  color: var(--gold);
+  font-weight: 700;
+}
+.log__line--walk .log__text {
+  color: #79c0ff;
+}
+
+.app__footer {
+  margin-top: 22px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+}
