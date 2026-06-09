@@ -24,6 +24,50 @@ const HIT_DIRECTIONS = ['レフト', 'センター', 'ライト', '左中間', '
 const GROUND_DIRECTIONS = ['ショート', 'セカンド', 'サード', 'ファースト', '投手'];
 const FLY_DIRECTIONS = ['レフト', 'センター', 'ライト'];
 
+// ── 実況テンプレート（臨場感を出すためのバリエーション）──
+const STRIKEOUT_VERBS = [
+  '空振り三振！',
+  '見逃し三振！',
+  '三振に倒れる',
+  '大きく空を切った、三振',
+];
+const GROUND_VERBS = ['ゴロ', 'ボテボテのゴロ', '詰まったゴロ', '鋭いゴロ'];
+const FLY_VERBS = ['へのフライ', 'へ平凡なフライ', 'へ打ち上げる', 'へ高く上がった'];
+const SINGLE_PHRASES = ['へ弾き返すヒット', '前へクリーンヒット', 'へ運ぶシングルヒット', 'を抜けるヒット'];
+
+/** 塁状況を「一・三塁」のような日本語にする */
+function basesLabel(bases: (Player | null)[]): string {
+  const on: string[] = [];
+  if (bases[0]) on.push('一');
+  if (bases[1]) on.push('二');
+  if (bases[2]) on.push('三');
+  if (on.length === 0) return '';
+  if (on.length === 3) return '満塁';
+  return on.join('・') + '塁';
+}
+
+/** 打席前の場面に応じた緊迫感の枕詞（チャンス／ピンチの演出） */
+function situationPrefix(bases: (Player | null)[], outs: number): string {
+  const loaded = bases[0] && bases[1] && bases[2];
+  const risp = bases[1] || bases[2];
+  if (loaded) return outs === 2 ? '二死満塁、一打逆転のチャンス。' : '満塁のチャンス。';
+  if (risp && outs === 2) return `二死${basesLabel(bases)}、ここで一打が欲しい。`;
+  if (risp) return `${basesLabel(bases)}と好機。`;
+  return '';
+}
+
+/** 得点が入ったときの「同点／勝ち越し／逆転」などの演出 */
+function scoringReaction(prevBatting: number, opp: number, added: number): string {
+  const after = prevBatting + added;
+  if (prevBatting < opp) {
+    if (after > opp) return ' ── 逆転だ！！';
+    if (after === opp) return ' ── 同点に追いついた！';
+    return ` ── ${added}点を返す`;
+  }
+  if (prevBatting === opp) return ' ── ついに勝ち越し！';
+  return ' ── さらにリードを広げる';
+}
+
 interface HalfState {
   bases: (Player | null)[]; // [一塁, 二塁, 三塁]
   outs: number;
@@ -99,10 +143,6 @@ function advanceRunners(state: HalfState, batter: Player, basesToAdvance: number
   return runs;
 }
 
-function describeBatter(order: number, batter: Player): string {
-  return `${order}番 ${batter.name}`;
-}
-
 /** 半イニングを消化して、得点とイベント列を返す */
 function playHalfInning(
   battingTeam: Team,
@@ -120,11 +160,10 @@ function playHalfInning(
   let order = startOrder;
   let hits = 0;
 
-  const teamName = battingTeam.shortName;
   events.push({
     inning,
     half,
-    text: `${inning}回${half === 'top' ? '表' : '裏'} ${battingTeam.name} の攻撃`,
+    text: `■ ${inning}回${half === 'top' ? '表' : '裏'}　${battingTeam.name} の攻撃　［投手 ${pitcher.name}］`,
     outs: 0,
     bases: [false, false, false],
     score: [scoreRef[0], scoreRef[1]],
@@ -136,10 +175,13 @@ function playHalfInning(
     const orderNo = (order % 9) + 1;
     // 投手の疲労: 100球で最大付近に到達する想定
     const fatigue = clamp((pitchCount.thrown - pitcher.pitches!.stamina * 1.1) / 60, 0, 1);
+
+    // 打席前の場面（チャンス／ピンチ）を演出に使うため、結果決定の前に控える
+    const prefix = situationPrefix(state.bases, state.outs);
     const outcome = resolveAtBat(batter, pitcher, fatigue, rng);
     pitchCount.thrown += rng.int(3, 7);
 
-    const label = describeBatter(orderNo, batter);
+    const label = `${orderNo}番 ${batter.name}`;
     let runsScored = 0;
     let kind: GameEvent['kind'] = 'out';
     let text = '';
@@ -165,7 +207,7 @@ function playHalfInning(
       }
       case 'strikeout': {
         state.outs += 1;
-        text = `${label}、空振り三振`;
+        text = `${label}、${rng.pick(STRIKEOUT_VERBS)}`;
         break;
       }
       case 'groundout': {
@@ -173,16 +215,16 @@ function playHalfInning(
         if (state.bases[0] && state.outs < 2 && rng.chance(0.35)) {
           state.outs += 2;
           state.bases[0] = null;
-          text = `${label}、${rng.pick(GROUND_DIRECTIONS)}ゴロ ゲッツー！`;
+          text = `${label}、${rng.pick(GROUND_DIRECTIONS)}${rng.pick(GROUND_VERBS)}、これを併殺！ゲッツーに倒れる`;
         } else {
           state.outs += 1;
           // 3塁走者は犠打的に還ることがある
           if (state.bases[2] && state.outs < 3 && rng.chance(0.2)) {
             state.bases[2] = null;
             runsScored += 1;
-            text = `${label}、${rng.pick(GROUND_DIRECTIONS)}ゴロの間に1点`;
+            text = `${label}、${rng.pick(GROUND_DIRECTIONS)}${rng.pick(GROUND_VERBS)}の間に三塁走者が生還、1点`;
           } else {
-            text = `${label}、${rng.pick(GROUND_DIRECTIONS)}ゴロ`;
+            text = `${label}、${rng.pick(GROUND_DIRECTIONS)}${rng.pick(GROUND_VERBS)}に倒れる`;
           }
         }
         break;
@@ -193,15 +235,15 @@ function playHalfInning(
         if (state.bases[2] && state.outs < 3 && rng.chance(0.5)) {
           state.bases[2] = null;
           runsScored += 1;
-          text = `${label}、${rng.pick(FLY_DIRECTIONS)}へ犠牲フライ 1点`;
+          text = `${label}、${rng.pick(FLY_DIRECTIONS)}へ犠牲フライ！三塁走者が還って1点`;
         } else {
-          text = `${label}、${rng.pick(FLY_DIRECTIONS)}フライ`;
+          text = `${label}、${rng.pick(FLY_DIRECTIONS)}${rng.pick(FLY_VERBS)}`;
         }
         break;
       }
       case 'lineout': {
         state.outs += 1;
-        text = `${label}、${rng.pick(GROUND_DIRECTIONS)}ライナー`;
+        text = `${label}、${rng.pick(GROUND_DIRECTIONS)}への鋭いライナー、惜しくも正面`;
         break;
       }
       case 'single': {
@@ -209,42 +251,60 @@ function playHalfInning(
         // 単打: 走者は1〜2塁進む（足が速いと2つ）
         const adv = batter.bats.speed > 65 && rng.chance(0.4) ? 2 : 1;
         runsScored += advanceRunners(state, batter, adv, 1);
-        text = `${label}、${rng.pick(HIT_DIRECTIONS)}へヒット`;
+        const dir = rng.pick(HIT_DIRECTIONS);
+        text =
+          runsScored > 0
+            ? `${label}、${dir}へタイムリーヒット！`
+            : `${label}、${dir}${rng.pick(SINGLE_PHRASES)}`;
         kind = 'hit';
         break;
       }
       case 'double': {
         hits += 1;
         runsScored += advanceRunners(state, batter, 2, 2);
-        text = `${label}、${rng.pick(HIT_DIRECTIONS)}へ二塁打`;
+        const dir = rng.pick(HIT_DIRECTIONS);
+        text =
+          runsScored > 0
+            ? `${label}、${dir}を破るタイムリーツーベース！`
+            : `${label}、${dir}へ鋭い二塁打`;
         kind = 'hit';
         break;
       }
       case 'triple': {
         hits += 1;
         runsScored += advanceRunners(state, batter, 3, 3);
-        text = `${label}、${rng.pick(HIT_DIRECTIONS)}を破る三塁打！`;
+        const dir = rng.pick(HIT_DIRECTIONS);
+        text =
+          runsScored > 0
+            ? `${label}、${dir}を真っ二つ！走者を一掃する三塁打！！`
+            : `${label}、${dir}深くへ快速の三塁打！`;
         kind = 'hit';
         break;
       }
       case 'homerun': {
         hits += 1;
         const onBase = state.bases.filter(Boolean).length;
+        const total = onBase + 1;
         runsScored += advanceRunners(state, batter, 4, 4);
-        text =
-          onBase === 3
-            ? `${label}、満塁ホームラン！！`
-            : `${label}、${rng.pick(HIT_DIRECTIONS)}へホームラン！${onBase > 0 ? `（${onBase}者還る）` : ''}`;
+        const dir = rng.pick(HIT_DIRECTIONS);
+        const name = onBase === 3 ? '満塁ホームラン' : total === 1 ? 'ソロホームラン' : `${total}ランホームラン`;
+        text = `${label}、${dir}スタンドへ${name}ーーっ！！`;
         kind = 'homerun';
         break;
       }
     }
 
     if (runsScored > 0) {
+      const prevBatting = scoreRef[scoreIndex];
+      const opp = scoreRef[1 - scoreIndex];
       state.runs += runsScored;
       scoreRef[scoreIndex] += runsScored;
       if (kind !== 'homerun') kind = 'score';
+      text += scoringReaction(prevBatting, opp, runsScored);
     }
+
+    // チャンス／ピンチの場面なら枕詞を付けて臨場感を出す
+    if (prefix) text = prefix + text;
 
     events.push({
       inning,
@@ -260,8 +320,27 @@ function playHalfInning(
     if (state.outs >= 3) break;
   }
 
-  void teamName;
   return { runs: state.runs, hits, nextOrder: order };
+}
+
+/** イニングの区切りに、現在スコアを示す「チェンジ」行を入れる（スコアの体感連動を高める） */
+function pushChangeLine(
+  events: GameEvent[],
+  inning: number,
+  half: 'top' | 'bottom',
+  away: Team,
+  home: Team,
+  score: [number, number],
+): void {
+  events.push({
+    inning,
+    half,
+    text: `── チェンジ ──　${away.shortName} ${score[0]} - ${score[1]} ${home.shortName}`,
+    outs: 3,
+    bases: [false, false, false],
+    score: [score[0], score[1]],
+    kind: 'info',
+  });
 }
 
 /** 1試合をシミュレートする。seed を渡せば再現可能。 */
@@ -299,6 +378,7 @@ export function simulateGame(away: Team, home: Team, seed: number = Date.now()):
     awayOrder.v = top.nextOrder;
     awayByInning[inning - 1] = top.runs;
     awayHits += top.hits;
+    pushChangeLine(events, inning, 'top', away, home, score);
 
     // 9回裏以降、ホームが勝っていればサヨナラ（裏を行わない）
     if (inning >= 9 && score[1] > score[0]) {
@@ -322,6 +402,7 @@ export function simulateGame(away: Team, home: Team, seed: number = Date.now()):
     homeOrder.v = bot.nextOrder;
     homeByInning[inning - 1] = bot.runs;
     homeHits += bot.hits;
+    pushChangeLine(events, inning, 'bottom', away, home, score);
 
     // 9回終了時点で決着していれば終了
     if (inning >= 9 && score[0] !== score[1]) break;

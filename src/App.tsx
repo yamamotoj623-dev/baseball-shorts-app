@@ -82,13 +82,7 @@ export function App() {
         <span className="app__tag">MVP-1 / 試合シミュレーション</span>
       </header>
 
-      <Scoreboard
-        away={matchup.away}
-        home={matchup.home}
-        result={result}
-        score={score}
-        upTo={cursor}
-      />
+      <Scoreboard away={matchup.away} home={matchup.home} events={visibleEvents} score={score} />
 
       {phase === 'preview' && (
         <section className="preview">
