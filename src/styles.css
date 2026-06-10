@@ -453,6 +453,9 @@ body {
 .pa--reach {
   border-left-color: var(--green);
 }
+.pa--hr {
+  border-left-color: var(--gold);
+}
 .pa--out {
   border-left-color: #4b535d;
 }
@@ -519,12 +522,37 @@ body {
   font-size: 16px;
   color: var(--text);
 }
+.pa__rtext {
+  flex: 1 1 auto;
+}
+.pa__state {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 .pa__score {
-  margin-left: auto;
   flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   font-size: 13px;
+}
+/* 結果の通し番号バッジ（決着球） */
+.pa__pnum--reach {
+  border-color: var(--green);
+  color: var(--green);
+}
+.pa__pnum--hr {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.pa__pnum--out {
+  border-color: #6e7681;
+  color: var(--muted);
+}
+.pa__pnum--injury {
+  border-color: var(--red);
+  color: var(--red);
 }
 .pa__result--hit {
   color: var(--green);

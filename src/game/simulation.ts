@@ -207,9 +207,8 @@ function maybeChangePitcher(def: SideState, inning: number, scoreDiff: number): 
   def.pitcherRuns = 0;
   def.calm = 0;
 
-  const reason = shelled ? `${prev.name}、ここで無念の降板。` : exhausted ? `${prev.name}は力尽きた。` : 'ベンチが動いた。';
-  const role = useCloser ? '守護神' : 'リリーフ';
-  return `🔁 ピッチャー交代。${reason}${role}・${next.name}がマウンドへ${useCloser ? '。球場のボルテージが上がる' : ''}`;
+  const role = useCloser ? '守護神' : shelled ? '火消し' : 'リリーフ';
+  return `🔁 投手交代: ${prev.name} → ${next.name}（${role}）`;
 }
 
 function maybeMoundVisit(def: SideState, state: HalfState, inning: number, rng: Rng, mem: GameMemory): string | null {
@@ -242,7 +241,7 @@ function maybePinchHitter(off: SideState, state: HalfState, inning: number, trai
 
   const pinch = off.bench.splice(best, 1)[0];
   off.lineup[idx] = pinch;
-  return `📣 ここで代打！${current.name}に代わって${pinch.name}。ベンチの勝負手だ`;
+  return `📣 代打: ${pinch.name} ← ${current.name}`;
 }
 
 function maybePinchRunner(off: SideState, state: HalfState, inning: number, closeGame: boolean, rng: Rng): string | null {
@@ -258,7 +257,7 @@ function maybePinchRunner(off: SideState, state: HalfState, inning: number, clos
   const li = off.lineup.findIndex((pl) => pl.id === runner.id);
   if (li >= 0) off.lineup[li] = fast;
   state.bases[0] = fast;
-  return `💨 代走に${fast.name}。一塁ベース上、いつでもスタートを切れる構えだ`;
+  return `💨 代走: ${fast.name} ← ${runner.name}`;
 }
 
 function maybeDefensiveSub(def: SideState, inning: number, leading: boolean, rng: Rng): string | null {
@@ -278,7 +277,7 @@ function maybeDefensiveSub(def: SideState, inning: number, leading: boolean, rng
   sub.position = out.position; // 守備位置を引き継ぐ
   def.lineup[weakest] = sub;
   def.defSubDone = true;
-  return `🧤 守備固め。${out.name}に代えて${sub.name}が入る。逃げ切り態勢だ`;
+  return `🧤 守備固め: ${sub.name} ← ${out.name}`;
 }
 
 function maybeInjury(off: SideState, state: HalfState, baseIdx: number, rng: Rng): string | null {

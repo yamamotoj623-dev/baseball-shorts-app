@@ -47,13 +47,32 @@ function buildBlocks(events: GameEvent[]): Block[] {
   return blocks;
 }
 
-/** 打席結果の種別から、左アクセント色（出塁＝緑 / アウト＝赤）を決める */
+/** 打席結果の種別から、左アクセント色（出塁＝緑 / アウト＝赤 / 本塁打＝金）を決める */
 function accentClass(results: GameEvent[]): string {
   if (results.length === 0) return 'pa--live';
   const k = results[results.length - 1].kind;
   if (k === 'out') return 'pa--out';
   if (k === 'injury') return 'pa--injury';
+  if (k === 'homerun') return 'pa--hr';
   return 'pa--reach';
+}
+
+/** 走者状況のラベル（一・二塁／満塁など。空なら ''） */
+function runnersLabel(bases: [boolean, boolean, boolean]): string {
+  const on: string[] = [];
+  if (bases[0]) on.push('一');
+  if (bases[1]) on.push('二');
+  if (bases[2]) on.push('三');
+  if (on.length === 0) return '';
+  if (on.length === 3) return '満塁';
+  return on.join('・') + '塁';
+}
+
+/** 打席決着後の状況（「3アウト」「1アウト二塁」「一塁」など）。NPB速報の経過に倣う */
+function stateSuffix(ev: GameEvent): string {
+  if (ev.outs >= 3) return '3アウト';
+  const o = ev.outs > 0 ? `${ev.outs}アウト` : '';
+  return o + runnersLabel(ev.bases);
 }
 
 export function PlayLog({ events, current, chars, typing, scrollRef }: Props) {
@@ -130,15 +149,24 @@ export function PlayLog({ events, current, chars, typing, scrollRef }: Props) {
                 </div>
               ))}
 
-            {b.results.map((ev, i) => (
-              <div key={`r${i}`} className={`pa__result pa__result--${ev.kind}`}>
-                {slice(ev)}
-                {caret(ev) && <span className="log__cursor">▌</span>}
-                <span className="pa__score">
-                  {ev.score[0]}-{ev.score[1]}
-                </span>
-              </div>
-            ))}
+            {b.results.map((ev, i) => {
+              // 決着球の通し番号（投球数＝記録された投球＋決着の1球）
+              const num = b.pitches.length + 1;
+              const suffix = ev.kind === 'injury' ? '' : stateSuffix(ev);
+              return (
+                <div key={`r${i}`} className={`pa__result pa__result--${ev.kind}`}>
+                  {i === 0 && <span className={`pa__pnum pa__pnum--${accentClass(b.results).slice(4)}`}>{num}</span>}
+                  <span className="pa__rtext">
+                    {slice(ev)}
+                    {caret(ev) && <span className="log__cursor">▌</span>}
+                  </span>
+                  {suffix && <span className="pa__state">{suffix}</span>}
+                  <span className="pa__score">
+                    {ev.score[0]}-{ev.score[1]}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         );
       })}
