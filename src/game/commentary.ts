@@ -208,6 +208,9 @@ export interface BatterDay {
   hr: number;
   rbi: number;
   sb: number;
+  bb: number;
+  d2: number;
+  d3: number;
 }
 
 /** シーズン通算の打者サマリ（リーグ永続化から渡される） */
@@ -319,6 +322,8 @@ export interface PitcherDay {
   k: number;
   outs: number;
   runs: number;
+  bb: number;
+  ha: number;
 }
 
 /** イニング頭の投手への言及。語ることがなければ null */
@@ -561,6 +566,22 @@ export function errorText(rng: Rng, used: Set<string>, label: string, fielder: P
     `${label}のゴロ──${fielder.name}がファンブル！記録は失策、出塁を許す`,
     `${label}、何でもないゴロだったが${fielder.name}の送球が逸れた！悪送球で出塁`,
     `${label}のゴロを${fielder.name}が弾いた！イレギュラーか、記録はエラー`,
+  ]);
+}
+
+/** リクエスト（リプレー検証）で内野安打に覆る */
+export function requestInfieldHitText(rng: Rng, used: Set<string>, label: string): string {
+  return pickFresh(rng, used, [
+    `${label}、一塁タッチアウトかと思われたが──ベンチがリクエスト。リプレー検証の結果、判定は覆ってセーフ！内野安打`,
+    `${label}のゴロ、際どいタイミング。リクエストによる検証の末、一塁セーフ！執念の内野安打`,
+  ]);
+}
+
+/** リクエストで盗塁セーフに覆る */
+export function requestStealSafeText(rng: Rng, used: Set<string>, runner: Player): string {
+  return pickFresh(rng, used, [
+    `${runner.name}、二塁タッチアウトの判定──しかしベンチがリクエスト。検証の結果、手が先に入っていてセーフ！盗塁成功`,
+    `際どいクロスプレー。リプレー検証が行われ……判定は覆って${runner.name}セーフ！値千金の盗塁`,
   ]);
 }
 

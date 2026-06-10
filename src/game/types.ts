@@ -28,6 +28,12 @@ export type Position =
   | '右'
   | '指';
 
+/** 投打 */
+export interface Hand {
+  throw: '右' | '左';
+  bat: '右' | '左' | '両';
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -35,6 +41,36 @@ export interface Player {
   bats: BatterStats;
   /** 投手のみ保持 */
   pitches?: PitcherStats;
+  /** 年齢（18〜45想定） */
+  age?: number;
+  /** 投打 */
+  hand?: Hand;
+  /** 外国人選手か */
+  foreign?: boolean;
+  /** 特殊能力（例: チャンス◎, 火の玉ストレート） */
+  abilities?: string[];
+  /** 年俸（万円） */
+  salary?: number;
+  /** モチベーション 0-100（実成績に反映） */
+  motivation?: number;
+  /** 隠し成長性 0-100（高いほど伸びる） */
+  potential?: number;
+}
+
+/** 監督（采配と性格） */
+export interface Manager {
+  name: string;
+  /** 攻撃的=盗塁/代打積極 / 堅実=手堅い / データ重視=確率の高い采配 */
+  style: '攻撃的' | '堅実' | 'データ重視';
+  /** 采配力 0-100 */
+  skill: number;
+}
+
+export interface Coach {
+  type: '打撃' | '投手';
+  name: string;
+  /** 指導力 0-100（選手の成長を加速） */
+  skill: number;
 }
 
 export interface Team {
@@ -48,6 +84,12 @@ export interface Team {
   bench: Player[];
   /** 救援投手（継投に使う。末尾ほど勝ちパターン） */
   bullpen: Player[];
+  /** 監督 */
+  manager?: Manager;
+  /** コーチ陣 */
+  coaches?: Coach[];
+  /** 球団資金（万円） */
+  funds?: number;
 }
 
 /** 1試合の集計（簡易ボックススコア） */
@@ -107,6 +149,12 @@ export interface GameBatting {
   k: number;
   rbi: number;
   sb: number;
+  /** 四死球 */
+  bb: number;
+  /** 二塁打 */
+  d2: number;
+  /** 三塁打 */
+  d3: number;
 }
 
 /** 1試合の投手個人成績 */
@@ -114,6 +162,10 @@ export interface GamePitching {
   outs: number;
   runs: number;
   k: number;
+  /** 与四死球 */
+  bb: number;
+  /** 被安打 */
+  ha: number;
 }
 
 export interface GameResult {

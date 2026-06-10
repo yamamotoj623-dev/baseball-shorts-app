@@ -6,14 +6,20 @@ import {
   applyGame,
   loadLeague,
   newLeague,
+  nextStaminaIn,
+  progressTick,
+  refreshStamina,
   resetLeague,
   saveLeague,
   seasonContext,
   setMyTeam,
+  spendStamina,
+  spendTicket,
   standings,
+  STAMINA_MAX,
   type LeagueState,
 } from './game/league';
-import { generateDraftPool } from './game/players';
+import { generateDraftPool, salaryFor, teamOverall } from './game/players';
 import { createRng } from './game/rng';
 import { Scoreboard } from './ui/Scoreboard';
 import { Diamond } from './ui/Diamond';
@@ -22,9 +28,11 @@ import { PlayLog } from './ui/PlayLog';
 import { Standings } from './ui/Standings';
 import { TeamSelect } from './ui/TeamSelect';
 import { Draft } from './ui/Draft';
+import { TeamBuilder, PlayerEditor } from './ui/TeamBuilder';
+import { StatsPanel } from './ui/StatsPanel';
 
 type Phase = 'preview' | 'playing' | 'finished';
-type Screen = 'select' | 'draft' | 'game';
+type Screen = 'select' | 'build' | 'draft' | 'game' | 'stats';
 const DRAFT_PICKS = 3;
 
 // pitch: 1球の間 / char: 1文字あたりのタイプ速度(ms) / pause: 結果行のあとの溜め
@@ -118,6 +126,51 @@ export function App() {
     setScreen('game');
   }, [league]);
 
+  // ── カスタム球団作成（マスターリーグ）──
+  const onBuildComplete = useCallback(
+    (custom: Team) => {
+      // 略称の衝突を避ける
+      while (league.teams.some((t) => t.shortName === custom.shortName)) custom.shortName += 'X';
+      // 総合力が最も低い球団を買収（入れ替え）
+      let wi = 0;
+      const score = (t: Team) => {
+        const ov = teamOverall(t);
+        return ov.bat + ov.pit;
+      };
+      for (let i = 1; i < league.teams.length; i++) if (score(league.teams[i]) < score(league.teams[wi])) wi = i;
+      league.teams[wi] = custom;
+      setMyTeam(league, custom.shortName);
+      league.news = [`🏟 ${custom.name} がリーグに参入！`, ...(league.news ?? [])].slice(0, 8);
+      saveLeague(league);
+      setLeague({ ...league });
+      setMatchup(pickMatchup(league));
+      setScreen('game');
+    },
+    [league],
+  );
+
+  // ── 再配分チケットで能力を振り直す ──
+  const [reallocTarget, setReallocTarget] = useState<Player | null>(null);
+  const [reallocPick, setReallocPick] = useState(false);
+
+  const startRealloc = useCallback(
+    (p: Player) => {
+      if (!spendTicket(league)) return;
+      saveLeague(league);
+      setLeague({ ...league });
+      setReallocPick(false);
+      setReallocTarget(p);
+    },
+    [league],
+  );
+
+  const endRealloc = useCallback(() => {
+    if (reallocTarget) reallocTarget.salary = salaryFor(reallocTarget);
+    saveLeague(league);
+    setLeague({ ...league });
+    setReallocTarget(null);
+  }, [league, reallocTarget]);
+
   // ── 再生エンジン ──
   // pitch イベントはライブパネルだけを更新して速く流し、
   // それ以外（結果・采配・イニング）は一文字ずつタイプして溜めを作る。
@@ -160,10 +213,16 @@ export function App() {
   }, [cursor, chars]);
 
   const startGame = useCallback(() => {
+    // スタミナを1消費（時間で回復。将来の課金ポイント）
+    if (!spendStamina(league)) {
+      setLeague({ ...league });
+      return;
+    }
     // シーズン成績を実況の文脈として渡してからシミュレートし、結果を成績に反映
     const season = seasonContext(league);
     const r = simulateGame(matchup.away, matchup.home, matchup.seed, season);
     applyGame(league, r);
+    progressTick(league, r); // 成長・モチベーション・年度替わり
     saveLeague(league);
     setLeague({ ...league });
     setResult(r);
@@ -225,6 +284,19 @@ export function App() {
 
   const myTeam = league.teams.find((t) => t.shortName === league.myTeam);
 
+  // スタミナの時間回復を1分ごとに表示へ反映
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      refreshStamina(league);
+      setLeague({ ...league });
+    }, 60000);
+    return () => clearInterval(id);
+  }, [league]);
+
+  const stamina = league.stamina ?? STAMINA_MAX;
+  const staminaWait = nextStaminaIn(league);
+  const tickets = league.tickets ?? 0;
+
   return (
     <div className="app">
       <header className="app__header">
@@ -232,7 +304,11 @@ export function App() {
         {screen === 'game' && myTeam && <span className="app__tag">{myTeam.name}・第{league.games + (phase === 'preview' ? 1 : 0)}戦</span>}
       </header>
 
-      {screen === 'select' && <TeamSelect teams={league.teams} onPick={onPickTeam} />}
+      {screen === 'select' && <TeamSelect teams={league.teams} onPick={onPickTeam} onCustom={() => setScreen('build')} />}
+
+      {screen === 'build' && <TeamBuilder onComplete={onBuildComplete} onCancel={() => setScreen('select')} />}
+
+      {screen === 'stats' && myTeam && <StatsPanel league={league} team={myTeam} onClose={() => setScreen('game')} />}
 
       {screen === 'draft' && myTeam && (
         <Draft team={myTeam} pool={draftPool} maxPicks={DRAFT_PICKS} onConfirm={onDraftConfirm} onSkip={onDraftSkip} />
@@ -244,20 +320,47 @@ export function App() {
 
           {phase === 'preview' && (
             <section className="preview">
+              <div className="economy">
+                <span className="economy__item">
+                  ⚡ {stamina}/{STAMINA_MAX}
+                  {stamina < STAMINA_MAX && staminaWait > 0 && (
+                    <span className="economy__timer">（あと{Math.ceil(staminaWait / 60000)}分で+1）</span>
+                  )}
+                </span>
+                <span className="economy__item">🎟 チケット {tickets}枚</span>
+                {myTeam?.funds != null && <span className="economy__item">🏦 {(myTeam.funds / 10000).toFixed(1)}億円</span>}
+              </div>
+
+              {(league.news?.length ?? 0) > 0 && (
+                <div className="news">
+                  {league.news!.slice(0, 4).map((n, i) => (
+                    <div key={i} className="news__line">
+                      {n}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="preview__cards">
                 <TeamCard team={matchup.away} side="ビジター" seasonBat={league.bat} record={league.records[matchup.away.shortName]} myTeam={league.myTeam} />
                 <span className="preview__vs">VS</span>
                 <TeamCard team={matchup.home} side="ホーム" seasonBat={league.bat} record={league.records[matchup.home.shortName]} myTeam={league.myTeam} />
               </div>
               <div className="controls">
-                <button className="btn btn--primary" onClick={startGame}>
-                  ▶ プレイボール
+                <button className="btn btn--primary" onClick={startGame} disabled={stamina < 1}>
+                  {stamina >= 1 ? '▶ プレイボール（⚡1）' : '⚡ スタミナ不足'}
                 </button>
                 <button className="btn" onClick={newCard}>
                   🎲 別のカード
                 </button>
                 <button className="btn" onClick={openDraft}>
                   ✍️ 補強
+                </button>
+                <button className="btn" onClick={() => setScreen('stats')}>
+                  📊 成績
+                </button>
+                <button className="btn" onClick={() => setReallocPick(true)} disabled={tickets < 1}>
+                  🎟 再配分
                 </button>
                 <button className="btn btn--ghost" onClick={onResetLeague}>
                   ♻️ リーグ再生成
@@ -326,6 +429,32 @@ export function App() {
           )}
         </>
       )}
+
+      {reallocPick && myTeam && (
+        <div className="editor" onClick={() => setReallocPick(false)}>
+          <div className="editor__panel" onClick={(e) => e.stopPropagation()}>
+            <h3 className="stats__sub">🎟 再配分する選手を選択（チケット1枚消費）</h3>
+            <div className="draft__list">
+              {[...myTeam.lineup, myTeam.pitcher, ...myTeam.bullpen, ...myTeam.bench].map((p) => (
+                <button key={p.id} className="draft__card" onClick={() => startRealloc(p)}>
+                  <span className="draft__pos">{p.position}</span>
+                  <span className="draft__pname">{p.name}</span>
+                  <span className="draft__stats">
+                    {p.pitches
+                      ? `球${p.pitches.velocity} 制${p.pitches.control} ス${p.pitches.stamina}`
+                      : `ミ${p.bats.meet} パ${p.bats.power} 走${p.bats.speed} 守${p.bats.defense}`}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button className="btn editor__done" onClick={() => setReallocPick(false)}>
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
+
+      {reallocTarget && <PlayerEditor player={reallocTarget} onChange={() => setLeague({ ...league })} onClose={endRealloc} />}
 
       <footer className="app__footer">
         選手・チームはすべて自動生成のオリジナル（実在の人物・球団とは無関係）

@@ -838,6 +838,347 @@ body {
   background: rgba(47, 129, 247, 0.12);
 }
 
+/* ---- 経済バー・ニュース ---- */
+.economy {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.economy__timer {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--muted);
+}
+.news {
+  background: rgba(47, 129, 247, 0.08);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+.news__line {
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+/* ---- 球団作成（マスターリーグ） ---- */
+.builder {
+  margin-top: 14px;
+}
+.builder__title {
+  font-size: 19px;
+  margin: 0 0 4px;
+}
+.builder__lead {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 12px;
+  line-height: 1.6;
+}
+.builder__meta {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.builder__input {
+  flex: 1 1 auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 15px;
+  min-width: 0;
+}
+.builder__input--short {
+  flex: 0 0 110px;
+}
+.builder__manager {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.builder__mlabel {
+  font-size: 13px;
+  color: var(--muted);
+}
+.builder__payroll {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gold);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+.builder__payroll--over {
+  color: var(--red);
+  border-color: var(--red);
+}
+.builder__group {
+  margin-bottom: 12px;
+}
+.builder__gtitle {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+.builder__row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  margin-bottom: 5px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 14px;
+}
+.builder__pos {
+  flex: 0 0 auto;
+  width: 24px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-size: 12px;
+}
+.builder__pname {
+  flex: 1 1 auto;
+  text-align: left;
+  font-weight: 700;
+}
+.builder__pname--empty {
+  color: var(--muted);
+  font-weight: 400;
+}
+.builder__hand {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+.builder__pts {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--green);
+}
+.builder__pts--over {
+  color: var(--red);
+  font-weight: 700;
+}
+.builder__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.builder__warn {
+  color: var(--red);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+/* ---- 選手エディタ（モーダル） ---- */
+.editor {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+}
+.editor__panel {
+  width: 100%;
+  max-width: 560px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 16px 16px 0 0;
+  padding: 16px;
+}
+.editor__head {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.editor__rows {
+  margin-bottom: 8px;
+}
+.editor__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 5px 0;
+  font-size: 14px;
+}
+.editor__sep {
+  width: 10px;
+}
+.editor__btn {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 38px;
+  padding: 7px 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+.editor__remain {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--green);
+  margin: 8px 0;
+}
+.editor__remain--over {
+  color: var(--red);
+}
+.editor__stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 0;
+}
+.editor__slabel {
+  flex: 0 0 64px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.editor__val {
+  flex: 0 0 44px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.editor__abilities {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 10px 0;
+}
+.editor__salary {
+  font-size: 13px;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+.editor__done {
+  width: 100%;
+}
+
+/* ---- 成績（セイバー） ---- */
+.stats {
+  margin-top: 14px;
+}
+.stats__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.stats__title {
+  font-size: 18px;
+  margin: 0;
+}
+.stats__sub {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 16px 0 6px;
+}
+.stats__empty {
+  color: var(--muted);
+  font-size: 13px;
+}
+.stats__scroll {
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px;
+}
+.stats__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.stats__table th {
+  color: var(--muted);
+  font-weight: 600;
+  padding: 4px 7px;
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+}
+.stats__table td {
+  padding: 5px 7px;
+  text-align: center;
+  border-bottom: 1px solid #21262d;
+}
+.stats__name {
+  text-align: left !important;
+}
+.stats__hl {
+  color: var(--gold);
+  font-weight: 700;
+}
+.stats__leaders {
+  margin: 0;
+  padding-left: 4px;
+  list-style: none;
+  font-size: 14px;
+}
+.stats__leaders li {
+  padding: 5px 0;
+  border-bottom: 1px solid #21262d;
+}
+.stats__rank {
+  display: inline-block;
+  width: 20px;
+  color: var(--muted);
+}
+
+/* ---- 球団選択のカスタムボタン ---- */
+.select__custom {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: linear-gradient(135deg, rgba(47, 129, 247, 0.18), rgba(63, 185, 80, 0.12));
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 800;
+  padding: 14px;
+  margin-bottom: 14px;
+  cursor: pointer;
+}
+.select__customsub {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
 .app__footer {
   margin-top: 22px;
   text-align: center;

@@ -80,7 +80,7 @@ function makeSide(team: Team): SideState {
 function batterDay(mem: GameMemory, p: Player): C.BatterDay {
   let d = mem.batters.get(p.id);
   if (!d) {
-    d = { ab: 0, h: 0, k: 0, hr: 0, rbi: 0, sb: 0 };
+    d = { ab: 0, h: 0, k: 0, hr: 0, rbi: 0, sb: 0, bb: 0, d2: 0, d3: 0 };
     mem.batters.set(p.id, d);
   }
   return d;
@@ -89,7 +89,7 @@ function batterDay(mem: GameMemory, p: Player): C.BatterDay {
 function pitcherDay(mem: GameMemory, p: Player): C.PitcherDay {
   let d = mem.pitchers.get(p.id);
   if (!d) {
-    d = { k: 0, outs: 0, runs: 0 };
+    d = { k: 0, outs: 0, runs: 0, bb: 0, ha: 0 };
     mem.pitchers.set(p.id, d);
   }
   return d;
@@ -106,14 +106,63 @@ function fielderAt(def: SideState, positions: string[], rng: Rng): Player {
   return rng.pick(def.lineup);
 }
 
+// ── 実効能力（モチベーション・特殊能力・投打相性を反映） ──────────────────────────────
+
+/** モチベーション補正（±6%） */
+function moraleMul(p: Player): number {
+  const m = p.motivation ?? 60;
+  return 0.94 + (m / 100) * 0.12;
+}
+
+function has(p: Player, ability: string): boolean {
+  return Boolean(p.abilities?.includes(ability));
+}
+
+/** 打者の実効ミート/パワー。risp=得点圏、vsLefty=相手が左腕 */
+function batterEff(p: Player, risp: boolean, vsLefty: boolean): { meet: number; power: number } {
+  const mul = moraleMul(p);
+  let meet = p.bats.meet * mul;
+  let power = p.bats.power * mul;
+  if (risp && has(p, 'チャンス◎')) {
+    meet += 8;
+    power += 6;
+  }
+  if (has(p, 'パワーヒッター')) power += 9;
+  if (has(p, 'アベレージヒッター')) meet += 9;
+  if (vsLefty) {
+    if (has(p, '対左投手◎')) meet += 9;
+    else if (p.hand?.bat === '左') meet -= 4; // 左打者は左腕を苦にする
+  }
+  return { meet, power };
+}
+
+/** 投手の実効球速/制球。risp=ピンチ、lateInning=終盤 */
+function pitcherEff(side: SideState, risp: boolean, inning: number): { velocity: number; control: number; fatigue: number } {
+  const p = side.pitcher;
+  const s = p.pitches!;
+  const mul = moraleMul(p);
+  let stamina = s.stamina;
+  if (has(p, '鉄腕')) stamina += 12;
+  const fatigue = clamp((side.pitchCount - stamina * 1.1) / 55, 0, 1);
+  let velocity = s.velocity * mul * (1 - fatigue * 0.3);
+  let control = s.control * mul * (1 - fatigue * 0.35) + side.calm;
+  if (has(p, '火の玉ストレート')) velocity += 8;
+  if (has(p, '精密機械')) control += 8;
+  if (risp && has(p, '勝負強い')) {
+    velocity += 6;
+    control += 6;
+  }
+  if (inning >= 7 && has(p, '尻上がり')) velocity += 6;
+  return { velocity, control, fatigue };
+}
+
 // ── 1球の確率モデル ──────────────────────────────
 
-function throwPitch(batter: Player, side: SideState, strikes: number, rng: Rng): PitchResult {
-  const p = side.pitcher.pitches!;
-  const fatigue = clamp((side.pitchCount - p.stamina * 1.1) / 55, 0, 1);
-  const control = p.control * (1 - fatigue * 0.35) + side.calm;
-  const velocity = p.velocity * (1 - fatigue * 0.3);
-  const meet = batter.bats.meet;
+function throwPitch(batter: Player, side: SideState, strikes: number, risp: boolean, inning: number, rng: Rng): PitchResult {
+  const eff = pitcherEff(side, risp, inning);
+  const control = eff.control;
+  const velocity = eff.velocity;
+  const meet = batterEff(batter, risp, side.pitcher.hand?.throw === '左').meet;
 
   const pHbp = clamp(0.003 + (40 - control) / 8000, 0.001, 0.012);
   if (rng.chance(pHbp)) return 'hbp';
@@ -131,14 +180,14 @@ function throwPitch(batter: Player, side: SideState, strikes: number, rng: Rng):
   return 'inplay';
 }
 
-function resolveInPlay(batter: Player, side: SideState, rng: Rng): InPlayOutcome {
-  const p = side.pitcher.pitches!;
-  const fatigue = clamp((side.pitchCount - p.stamina * 1.1) / 55, 0, 1);
-  const control = p.control * (1 - fatigue * 0.35) + side.calm;
+function resolveInPlay(batter: Player, side: SideState, risp: boolean, inning: number, rng: Rng): InPlayOutcome {
+  const effP = pitcherEff(side, risp, inning);
+  const control = effP.control;
+  const effB = batterEff(batter, risp, side.pitcher.hand?.throw === '左');
 
-  const hitChance = clamp(0.34 + (batter.bats.meet - control) / 340, 0.2, 0.5);
+  const hitChance = clamp(0.34 + (effB.meet - control) / 340, 0.2, 0.5);
   if (rng.chance(hitChance)) {
-    const pow = batter.bats.power;
+    const pow = effB.power;
     const roll = rng.next();
     const pHR = clamp(0.05 + (pow - 50) / 210, 0.01, 0.3); // パワーで大きく変動
     const pTriple = clamp(0.005 + (batter.bats.speed - 30) / 1300, 0.004, 0.06); // 走力依存
@@ -223,6 +272,15 @@ function maybeMoundVisit(def: SideState, state: HalfState, inning: number, rng: 
   return C.moundVisitText(rng, mem.used, def.pitcher, manager);
 }
 
+/** 監督の性格による采配係数 */
+function managerAggro(team: { manager?: { style: string } }): { steal: number; pinch: number } {
+  const style = team.manager?.style;
+  if (style === '攻撃的') return { steal: 1.6, pinch: 1.2 };
+  if (style === '堅実') return { steal: 0.6, pinch: 0.8 };
+  if (style === 'データ重視') return { steal: 1.1, pinch: 1.05 };
+  return { steal: 1, pinch: 1 };
+}
+
 function maybePinchHitter(off: SideState, state: HalfState, inning: number, trailingBy: number, rng: Rng): string | null {
   if (inning < 7 || off.bench.length === 0) return null;
   const idx = off.order % 9;
@@ -237,7 +295,7 @@ function maybePinchHitter(off: SideState, state: HalfState, inning: number, trai
     if (best < 0 || score(off.bench[i]) > score(off.bench[best])) best = i;
   }
   if (score(off.bench[best]) < score(current) + 10) return null;
-  if (!rng.chance(0.75)) return null;
+  if (!rng.chance(clamp(0.75 * managerAggro(off.meta).pinch, 0.3, 0.95))) return null;
 
   const pinch = off.bench.splice(best, 1)[0];
   off.lineup[idx] = pinch;
@@ -375,7 +433,9 @@ function playHalfInning(
       // 盗塁（俊足ほど仕掛ける。NPB水準: 両軍計で企図1強/試合・成功率7割前後）
       const r1 = state.bases[0];
       if (r1) {
-        const attemptP = clamp((r1.bats.speed - 46) / 150, 0, 0.28);
+        const aggro = managerAggro(off.meta).steal;
+        const kingBonus = r1.abilities?.includes('盗塁王') ? 1.6 : 1;
+        const attemptP = clamp(((r1.bats.speed - 46) / 150) * aggro * kingBonus, 0, 0.4);
         if (rng.chance(attemptP)) {
           const catcher = fielderAt(def, ['捕'], rng);
           const successP = clamp(0.6 + (r1.bats.speed - 50) / 105 - (catcher.bats.defense - 50) / 240, 0.38, 0.95);
@@ -386,6 +446,13 @@ function playHalfInning(
             rd.sb += 1;
             const nth = (season?.bat.get(r1.id)?.sb ?? 0) + rd.sb;
             push(C.stealSuccessText(rng, mem.used, r1, nth), 'hit');
+          } else if (rng.chance(0.12)) {
+            // リクエストで判定が覆って盗塁成功
+            state.bases[1] = r1;
+            state.bases[0] = null;
+            const rd = batterDay(mem, r1);
+            rd.sb += 1;
+            push(C.requestStealSafeText(rng, mem.used, r1), 'hit');
           } else {
             state.outs += 1;
             state.bases[0] = null;
@@ -438,7 +505,8 @@ function playHalfInning(
     let terminal: 'walk' | 'hbp' | 'strikeout' | InPlayOutcome | null = null;
 
     while (terminal === null) {
-      const pr = throwPitch(batter, def, strikes, rng);
+      const risp = Boolean(state.bases[1] || state.bases[2]);
+      const pr = throwPitch(batter, def, strikes, risp, inning, rng);
       def.pitchCount += 1;
 
       if (pr === 'hbp') {
@@ -446,7 +514,7 @@ function playHalfInning(
         break;
       }
       if (pr === 'inplay') {
-        terminal = resolveInPlay(batter, def, rng);
+        terminal = resolveInPlay(batter, def, Boolean(state.bases[1] || state.bases[2]), inning, rng);
         break;
       }
 
@@ -496,11 +564,15 @@ function playHalfInning(
         kind = runsScored > 0 ? 'score' : 'walk';
         text = C.walkText(rng, mem.used, batterLabel, runsScored > 0);
         countAB = false;
+        day.bb += 1;
+        pitcherDay(mem, def.pitcher).bb += 1;
         break;
       }
       case 'hbp': {
         runsScored += forceAdvance(state, batter);
         kind = runsScored > 0 ? 'score' : 'walk';
+        day.bb += 1;
+        pitcherDay(mem, def.pitcher).bb += 1;
         text = `${batterLabel}、デッドボール！体に当たって顔をしかめる${runsScored > 0 ? '（押し出し）' : ''}`;
         countAB = false;
         if (rng.chance(0.18) && off.bench.length > 0) {
@@ -546,6 +618,14 @@ function playHalfInning(
           state.bases[0] = batter;
           text = C.fielderChoiceText(rng, mem.used, batterLabel);
           kind = 'walk';
+        } else if (rng.chance(0.02)) {
+          // リクエスト（リプレー検証）で内野安打に覆る
+          hits += 1;
+          day.h += 1;
+          pitcherDay(mem, def.pitcher).ha += 1;
+          runsScored += advanceRunners(state, batter, 1, 1);
+          text = C.requestInfieldHitText(rng, mem.used, batterLabel);
+          kind = 'hit';
         } else {
           state.outs += 1;
           chargeOuts(1);
@@ -591,6 +671,7 @@ function playHalfInning(
       case 'single': {
         hits += 1;
         day.h += 1;
+        pitcherDay(mem, def.pitcher).ha += 1;
         const adv = batter.bats.speed > 65 && rng.chance(0.4) ? 2 : 1;
         runsScored += advanceRunners(state, batter, adv, 1);
         text = C.singleText(rng, mem.used, batterLabel, runsScored > 0);
@@ -600,6 +681,8 @@ function playHalfInning(
       case 'double': {
         hits += 1;
         day.h += 1;
+        day.d2 += 1;
+        pitcherDay(mem, def.pitcher).ha += 1;
         const entitled = rng.chance(0.06);
         runsScored += advanceRunners(state, batter, 2, 2);
         text = C.doubleText(rng, mem.used, batterLabel, runsScored > 0, entitled);
@@ -609,6 +692,8 @@ function playHalfInning(
       case 'triple': {
         hits += 1;
         day.h += 1;
+        day.d3 += 1;
+        pitcherDay(mem, def.pitcher).ha += 1;
         runsScored += advanceRunners(state, batter, 3, 3);
         text = C.tripleText(rng, mem.used, batterLabel, runsScored > 0);
         kind = 'hit';
@@ -618,6 +703,7 @@ function playHalfInning(
         hits += 1;
         day.h += 1;
         day.hr += 1;
+        pitcherDay(mem, def.pitcher).ha += 1;
         const onBase = state.bases.filter(Boolean).length;
         runsScored += advanceRunners(state, batter, 4, 4);
         text = C.homerunText(rng, mem.used, batterLabel, batter, onBase + 1);
@@ -761,9 +847,9 @@ export function simulateGame(away: Team, home: Team, seed: number = Date.now(), 
   });
 
   const batting: GameResult['batting'] = {};
-  for (const [id, d] of mem.batters) batting[id] = { ab: d.ab, h: d.h, hr: d.hr, k: d.k, rbi: d.rbi, sb: d.sb };
+  for (const [id, d] of mem.batters) batting[id] = { ab: d.ab, h: d.h, hr: d.hr, k: d.k, rbi: d.rbi, sb: d.sb, bb: d.bb, d2: d.d2, d3: d.d3 };
   const pitching: GameResult['pitching'] = {};
-  for (const [id, d] of mem.pitchers) pitching[id] = { outs: d.outs, runs: d.runs, k: d.k };
+  for (const [id, d] of mem.pitchers) pitching[id] = { outs: d.outs, runs: d.runs, k: d.k, bb: d.bb, ha: d.ha };
 
   return { away: awayLine, home: homeLine, events, innings: playedInnings, batting, pitching };
 }
