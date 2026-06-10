@@ -1,12 +1,16 @@
 import type { Player, Team } from '../game/types';
+import type { BatTotals } from '../game/league';
 
 interface Props {
   team: Team;
   side: string;
+  /** シーズン打撃成績（選手ID別）。あれば率・本を表示 */
+  seasonBat?: Record<string, BatTotals>;
 }
 
 /** チームの打順・先発投手を能力値つきで一覧表示（試合前プレビュー用） */
-export function TeamCard({ team, side }: Props) {
+export function TeamCard({ team, side, seasonBat }: Props) {
+  const hasSeason = Boolean(seasonBat && Object.keys(seasonBat).length > 0);
   return (
     <div className="teamcard">
       <div className="teamcard__head">
@@ -24,11 +28,13 @@ export function TeamCard({ team, side }: Props) {
             <th title="パワー">パ</th>
             <th title="走力">走</th>
             <th title="守備">守</th>
+            {hasSeason && <th title="今季打率">率</th>}
+            {hasSeason && <th title="今季本塁打">本</th>}
           </tr>
         </thead>
         <tbody>
           {team.lineup.map((p, i) => (
-            <BatterRow key={p.id} order={i + 1} player={p} />
+            <BatterRow key={p.id} order={i + 1} player={p} season={seasonBat?.[p.id]} hasSeason={hasSeason} />
           ))}
         </tbody>
       </table>
@@ -54,8 +60,19 @@ export function TeamCard({ team, side }: Props) {
   );
 }
 
-function BatterRow({ order, player }: { order: number; player: Player }) {
+function BatterRow({
+  order,
+  player,
+  season,
+  hasSeason,
+}: {
+  order: number;
+  player: Player;
+  season?: BatTotals;
+  hasSeason: boolean;
+}) {
   const b = player.bats;
+  const avg = season && season.ab > 0 ? `.${Math.round((season.h / season.ab) * 1000).toString().padStart(3, '0')}` : '-';
   return (
     <tr>
       <td className="roster__num">{order}</td>
@@ -65,6 +82,8 @@ function BatterRow({ order, player }: { order: number; player: Player }) {
       <td>{b.power}</td>
       <td>{b.speed}</td>
       <td>{b.defense}</td>
+      {hasSeason && <td className="roster__season">{avg}</td>}
+      {hasSeason && <td className="roster__season">{season?.hr ?? 0}</td>}
     </tr>
   );
 }

@@ -125,6 +125,18 @@ function makeReliever(rng: Rng, strength: number, velocityBonus: number): Player
   return p;
 }
 
+/** リーグの全球団を生成（チーム名は重複しない） */
+export function generateLeague(rng: Rng, count: number = 6): Team[] {
+  const pool = [...TEAM_POOL];
+  const teams: Team[] = [];
+  const n = Math.min(count, pool.length); // pool は splice で縮むため先に確定させる
+  for (let i = 0; i < n; i++) {
+    const meta = pool.splice(rng.int(0, pool.length), 1)[0];
+    teams.push(generateTeam(rng, { name: meta.name, short: meta.short }, stat(rng, 52, 8)));
+  }
+  return teams;
+}
+
 /** 対戦する2チームを生成（チーム名は重複しないように選ぶ） */
 export function generateMatchup(rng: Rng): { away: Team; home: Team } {
   const pool = [...TEAM_POOL];

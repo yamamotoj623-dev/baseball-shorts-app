@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { generateMatchup } from './game/players';
 import { simulateGame } from './game/simulation';
 import type { GameEvent, GameResult, Team } from './game/types';
-import { createRng } from './game/rng';
+import { applyGame, loadLeague, newLeague, resetLeague, saveLeague, seasonContext, type LeagueState } from './game/league';
 import { Scoreboard } from './ui/Scoreboard';
 import { Diamond } from './ui/Diamond';
 import { TeamCard } from './ui/TeamCard';
@@ -16,15 +15,25 @@ const SPEEDS = [
   { label: '速い', pitch: 70, char: 0, pause: 140 },
 ];
 
-function freshMatchup(): { away: Team; home: Team; seed: number } {
+/** リーグから対戦カードを1つ選ぶ */
+function pickMatchup(league: LeagueState): { away: Team; home: Team; seed: number } {
   const seed = (Math.random() * 2 ** 31) >>> 0;
-  const rng = createRng(seed);
-  const { away, home } = generateMatchup(rng);
-  return { away, home, seed };
+  const n = league.teams.length;
+  const ai = Math.floor(Math.random() * n);
+  let hi = Math.floor(Math.random() * (n - 1));
+  if (hi >= ai) hi += 1;
+  return { away: league.teams[ai], home: league.teams[hi], seed };
 }
 
 export function App() {
-  const [matchup, setMatchup] = useState(freshMatchup);
+  const [league, setLeague] = useState<LeagueState>(() => {
+    const loaded = loadLeague();
+    if (loaded) return loaded;
+    const fresh = newLeague();
+    saveLeague(fresh);
+    return fresh;
+  });
+  const [matchup, setMatchup] = useState(() => pickMatchup(league));
   const [result, setResult] = useState<GameResult | null>(null);
   const [cursor, setCursor] = useState(0); // 再生中のイベント index
   const [chars, setChars] = useState(0); // 現在行のタイプライター進行
@@ -65,12 +74,17 @@ export function App() {
   }, [cursor, chars]);
 
   const startGame = useCallback(() => {
-    const r = simulateGame(matchup.away, matchup.home, matchup.seed);
+    // シーズン成績を実況の文脈として渡してからシミュレートし、結果を成績に反映
+    const season = seasonContext(league);
+    const r = simulateGame(matchup.away, matchup.home, matchup.seed, season);
+    applyGame(league, r);
+    saveLeague(league);
+    setLeague({ ...league });
     setResult(r);
     setCursor(0);
     setChars(0);
     setPhase('playing');
-  }, [matchup]);
+  }, [matchup, league]);
 
   const skipToEnd = useCallback(() => {
     if (!result) return;
@@ -80,7 +94,18 @@ export function App() {
   }, [result]);
 
   const newCard = useCallback(() => {
-    setMatchup(freshMatchup());
+    setMatchup(pickMatchup(league));
+    setResult(null);
+    setCursor(0);
+    setChars(0);
+    setPhase('preview');
+  }, [league]);
+
+  const onResetLeague = useCallback(() => {
+    if (!window.confirm('リーグを作り直すと全選手のシーズン成績がリセットされます。よろしいですか？')) return;
+    const fresh = resetLeague();
+    setLeague(fresh);
+    setMatchup(pickMatchup(fresh));
     setResult(null);
     setCursor(0);
     setChars(0);
@@ -118,7 +143,7 @@ export function App() {
     <div className="app">
       <header className="app__header">
         <h1>⚾ テキスト野球シミュ</h1>
-        <span className="app__tag">一球速報モード</span>
+        <span className="app__tag">シーズン第{league.games + (phase === 'preview' ? 1 : 0)}戦</span>
       </header>
 
       <Scoreboard away={matchup.away} home={matchup.home} events={played} score={score} />
@@ -126,9 +151,9 @@ export function App() {
       {phase === 'preview' && (
         <section className="preview">
           <div className="preview__cards">
-            <TeamCard team={matchup.away} side="ビジター" />
+            <TeamCard team={matchup.away} side="ビジター" seasonBat={league.bat} />
             <span className="preview__vs">VS</span>
-            <TeamCard team={matchup.home} side="ホーム" />
+            <TeamCard team={matchup.home} side="ホーム" seasonBat={league.bat} />
           </div>
           <div className="controls">
             <button className="btn btn--primary" onClick={startGame}>
@@ -136,6 +161,9 @@ export function App() {
             </button>
             <button className="btn" onClick={newCard}>
               🎲 別のカード
+            </button>
+            <button className="btn btn--ghost" onClick={onResetLeague}>
+              ♻️ リーグ再生成
             </button>
           </div>
         </section>

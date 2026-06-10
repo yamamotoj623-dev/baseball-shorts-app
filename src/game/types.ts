@@ -96,10 +96,30 @@ export interface GameEvent {
   pitcherLabel?: string;
 }
 
+/** 1試合の打者個人成績 */
+export interface GameBatting {
+  ab: number;
+  h: number;
+  hr: number;
+  k: number;
+  rbi: number;
+  sb: number;
+}
+
+/** 1試合の投手個人成績 */
+export interface GamePitching {
+  outs: number;
+  runs: number;
+  k: number;
+}
+
 export interface GameResult {
   away: TeamLine;
   home: TeamLine;
   events: GameEvent[];
   /** 何回まで行ったか（延長含む） */
   innings: number;
+  /** 選手ID別の個人成績（シーズン集計に使う） */
+  batting: Record<string, GameBatting>;
+  pitching: Record<string, GamePitching>;
 }

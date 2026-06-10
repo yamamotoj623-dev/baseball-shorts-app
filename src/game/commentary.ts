@@ -164,6 +164,33 @@ export interface BatterDay {
   h: number;
   k: number;
   hr: number;
+  rbi: number;
+  sb: number;
+}
+
+/** シーズン通算の打者サマリ（リーグ永続化から渡される） */
+export interface SeasonBatterInfo {
+  games: number;
+  ab: number;
+  h: number;
+  hr: number;
+  sb: number;
+  avg: number;
+  /** 直近5試合の合計 */
+  recentAb: number;
+  recentH: number;
+  recentHr: number;
+}
+
+/** シーズン通算の投手サマリ */
+export interface SeasonPitcherInfo {
+  games: number;
+  era: number;
+  k: number;
+}
+
+function fmtAvg(avg: number): string {
+  return `.${Math.round(avg * 1000).toString().padStart(3, '0')}`;
 }
 
 /** 打席に入る打者の紹介行。語ることがなければ null */
@@ -173,9 +200,42 @@ export function batterIntroLine(
   label: string,
   batter: Player,
   day: BatterDay,
+  season?: SeasonBatterInfo,
 ): string | null {
   const trait = batterTrait(batter);
   const candidates: string[] = [];
+
+  // ── シーズン成績・直近の調子への言及 ──
+  if (season && season.ab >= 15) {
+    if (season.avg >= 0.32) {
+      candidates.push(
+        `打席には${label}。今季打率${fmtAvg(season.avg)}と絶好調のシーズンを送っている`,
+        `${label}。リーグ屈指の打率${fmtAvg(season.avg)}、相手バッテリーは細心の注意を払う`,
+      );
+    } else if (season.avg <= 0.21) {
+      candidates.push(
+        `打席には${label}。今季は打率${fmtAvg(season.avg)}と苦しんでいる`,
+        `${label}、今季ここまで${fmtAvg(season.avg)}。状態を上げたいところだ`,
+      );
+    }
+    if (season.hr >= 3) {
+      candidates.push(`打席には${label}。今季すでに${season.hr}本のアーチを描いている`);
+    }
+    if (season.recentAb >= 12) {
+      const recentAvg = season.recentH / season.recentAb;
+      if (recentAvg >= 0.4) {
+        candidates.push(
+          `打席には${label}。ここ数試合で${season.recentH}安打と当たりに当たっている`,
+          `${label}、直近の打棒は手がつけられない。この打席も期待がかかる`,
+        );
+      } else if (recentAvg <= 0.13) {
+        candidates.push(
+          `打席には${label}。ここ数試合は当たりが止まっており、復調の一打が欲しい`,
+          `${label}、直近${season.recentAb}打数${season.recentH}安打と急ブレーキ。流れを変えられるか`,
+        );
+      }
+    }
+  }
 
   if (day.hr > 0) {
     candidates.push(
@@ -220,10 +280,29 @@ export interface PitcherDay {
 }
 
 /** イニング頭の投手への言及。語ることがなければ null */
-export function pitcherNoteLine(rng: Rng, used: Set<string>, pitcher: Player, day: PitcherDay): string | null {
+export function pitcherNoteLine(
+  rng: Rng,
+  used: Set<string>,
+  pitcher: Player,
+  day: PitcherDay,
+  season?: SeasonPitcherInfo,
+): string | null {
   const ip = Math.floor(day.outs / 3);
   const trait = pitcherTrait(pitcher);
   const candidates: string[] = [];
+
+  // シーズン成績への言及
+  if (season && season.games >= 2) {
+    if (season.era <= 2.3) {
+      candidates.push(
+        `マウンドの${pitcher.name}、今季防御率${season.era.toFixed(2)}と盤石の投球を続けている`,
+      );
+    } else if (season.era >= 5.5) {
+      candidates.push(
+        `${pitcher.name}、今季は防御率${season.era.toFixed(2)}と苦しいシーズン。今日こそ結果が欲しい`,
+      );
+    }
+  }
   if (ip >= 4 && day.runs === 0) {
     candidates.push(
       `先発${pitcher.name}、ここまで${ip}回を無失点。${trait ? `${trait}の本領発揮、` : ''}危なげない投球が続く`,
@@ -390,12 +469,14 @@ export function walkText(rng: Rng, used: Set<string>, label: string, oshidashi: 
 
 // ── 新プレー（盗塁・牽制・失策・野選） ──────────────────────────────
 
-export function stealSuccessText(rng: Rng, used: Set<string>, runner: Player): string {
-  return pickFresh(rng, used, [
+export function stealSuccessText(rng: Rng, used: Set<string>, runner: Player, seasonNth?: number): string {
+  const base = pickFresh(rng, used, [
     `${runner.name}、スタートを切った──二塁へ滑り込んでセーフ！盗塁成功！`,
     `${runner.name}が走った！捕手の送球も及ばず、鮮やかな盗塁`,
     `初球から${runner.name}が仕掛けた！楽々セーフ、足で揺さぶる`,
   ]);
+  if (seasonNth && seasonNth >= 3) return `${base}（今季${seasonNth}個目）`;
+  return base;
 }
 
 export function caughtStealingText(rng: Rng, used: Set<string>, runner: Player): string {

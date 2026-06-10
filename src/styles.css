@@ -203,6 +203,15 @@ body {
   border-color: var(--accent);
   font-weight: 700;
 }
+.btn--ghost {
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+}
+.roster__season {
+  color: var(--gold);
+  font-size: 12px;
+}
 
 /* ---- ライブ ---- */
 .live {
