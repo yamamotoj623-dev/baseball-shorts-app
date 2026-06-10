@@ -22,6 +22,8 @@ interface SideState {
   bench: Player[];
   bullpen: Player[];
   pitcher: Player;
+  /** 現在の投手の持ち球（実況用） */
+  repertoire: string[];
   pitchCount: number;
   pitcherRuns: number;
   order: number;
@@ -62,6 +64,7 @@ function makeSide(team: Team): SideState {
     bench: team.bench.map(clonePlayer),
     bullpen: team.bullpen.map(clonePlayer),
     pitcher: clonePlayer(team.pitcher),
+    repertoire: C.deriveRepertoire(team.pitcher),
     pitchCount: 0,
     pitcherRuns: 0,
     order: 0,
@@ -197,6 +200,7 @@ function maybeChangePitcher(def: SideState, inning: number, scoreDiff: number): 
   const useCloser = inning >= 9 && scoreDiff >= 0 && scoreDiff <= 3;
   const next = useCloser ? def.bullpen.pop()! : def.bullpen.shift()!;
   def.pitcher = next;
+  def.repertoire = C.deriveRepertoire(next);
   def.pitchCount = 0;
   def.pitcherRuns = 0;
   def.calm = 0;
@@ -213,7 +217,9 @@ function maybeMoundVisit(def: SideState, state: HalfState, inning: number, rng: 
   if (!rng.chance(0.45)) return null;
   def.visitedInning = inning;
   def.calm = 7;
-  return C.moundVisitText(rng, mem.used, def.pitcher);
+  // 終盤の大ピンチでは、たまに監督自らがマウンドへ
+  const manager = inning >= 7 && runners >= 3 && rng.chance(0.4);
+  return C.moundVisitText(rng, mem.used, def.pitcher, manager);
 }
 
 function maybePinchHitter(off: SideState, state: HalfState, inning: number, trailingBy: number, rng: Rng): string | null {
@@ -395,6 +401,17 @@ function playHalfInning(
     const batterLabel = `${orderNo}番 ${batter.name}`;
     const day = batterDay(mem, batter);
 
+    // 打席ごとの状況見出し（◯番 ◯◯　一死二塁）
+    push(
+      C.situationHeader(orderNo, batter.name, state.outs, [
+        Boolean(state.bases[0]),
+        Boolean(state.bases[1]),
+        Boolean(state.bases[2]),
+      ]),
+      'situation',
+      { batter: batterLabel },
+    );
+
     // 打席紹介（今日の成績・特徴に言及。出しすぎない）
     const intro = C.batterIntroLine(rng, mem.used, batterLabel, batter, day, season?.bat.get(batter.id));
     if (intro) push(intro, 'mound', { batter: batterLabel });
@@ -426,34 +443,36 @@ function playHalfInning(
         break;
       }
 
-      let pitchText = '';
+      let result: 'ball' | 'called' | 'swing' | 'foul';
       if (pr === 'ball') {
         balls += 1;
         if (balls >= 4) {
           terminal = 'walk';
           break;
         }
-        pitchText = rng.pick(C.BALL_CALLS);
+        result = 'ball';
       } else if (pr === 'called') {
         strikes += 1;
         if (strikes >= 3) {
           terminal = 'strikeout';
           break;
         }
-        pitchText = rng.pick(C.CALLED_STRIKES);
+        result = 'called';
       } else if (pr === 'swing') {
         strikes += 1;
         if (strikes >= 3) {
           terminal = 'strikeout';
           break;
         }
-        pitchText = rng.pick(C.SWING_MISSES);
+        result = 'swing';
       } else {
         if (strikes < 2) strikes += 1;
-        pitchText = rng.pick(C.FOULS);
+        result = 'foul';
       }
 
-      if (balls === 3 && strikes === 2) pitchText += ' ──フルカウント';
+      // 「外角高めのスライダーを見送ってボール 1-0」のように球種・コース・カウントを実況
+      let pitchText = C.pitchLine(rng, def.repertoire, result, balls, strikes);
+      if (balls === 3 && strikes === 2) pitchText += '（フルカウント）';
       push(pitchText, 'pitch', { count: [balls, strikes], batter: batterLabel });
     }
 

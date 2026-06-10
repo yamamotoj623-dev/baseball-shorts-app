@@ -63,13 +63,14 @@ export interface TeamLine {
 /** 実況イベントの種別（UIでの色分け・再生テンポ制御に使う） */
 export type EventKind =
   | 'info' // イニング表示・チェンジ・試合終了
+  | 'situation' // 打席ごとの状況見出し（◯番 ◯◯　一死二塁）
   | 'pitch' // 1球（BSOランプ用。ログには残さない）
   | 'hit'
   | 'out'
   | 'score'
   | 'walk'
   | 'homerun'
-  | 'mound' // マウンド集合などの間
+  | 'mound' // マウンドでの間
   | 'sub' // 継投・代打・代走・守備固め
   | 'injury'; // 負傷・アクシデント
 

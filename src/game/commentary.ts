@@ -37,38 +37,74 @@ export function pitcherTrait(p: Player): string | null {
   return null;
 }
 
-// ── 1球の実況（ライブパネル用） ──────────────────────────────
+// ── 球種・コース・1球ごとの実況 ──────────────────────────────
 
-export const BALL_CALLS = [
-  'ボール、外れた',
-  'ボール',
-  '低めに外れてボール',
-  '際どいコース、判定はボール',
-  '大きく外れた。捕手が腕を伸ばして止める',
-  '指先にかからなかったか、ボール',
+const FASTBALLS = ['ストレート', 'ツーシーム', 'カットボール'];
+const BREAKING = ['スライダー', 'カーブ', 'フォーク', 'チェンジアップ', 'シンカー', 'スプリット'];
+const ZONES = [
+  '内角高め',
+  '内角低め',
+  '外角高め',
+  '外角低め',
+  '真ん中高め',
+  '真ん中低め',
+  '膝元',
+  '外角いっぱい',
+  '内角',
+  '外角',
+  '高め',
+  '低め',
 ];
-export const CALLED_STRIKES = [
-  'ストライク、見逃した',
-  'ズバッとストライク！',
-  '外角いっぱいに決まってストライク',
-  '膝元へ、見逃してストライク',
-  'うなるような一球がミットに収まる。ストライク',
-];
-export const SWING_MISSES = [
-  '空振り！',
-  'バットが空を切る！',
-  '豪快に空振り',
-  '振り遅れた、空振り',
-  '落ちる球にバットが止まらない！空振り',
-];
-export const FOULS = [
-  'ファウル',
-  'カットしてファウル',
-  'ファウルで粘る',
-  '打ち上げたがファウルグラウンドへ',
-  '鋭い当たりはしかしファウル',
-  'バックネットへのファウル',
-];
+
+/** 投手ID から決まった球種レパートリーを作る（同じ投手は毎回同じ持ち球） */
+export function deriveRepertoire(pitcher: Player): string[] {
+  let h = 2166136261;
+  for (const ch of pitcher.id) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const rep = new Set<string>(['ストレート']);
+  if ((pitcher.pitches?.velocity ?? 50) >= 60 || h % 3 === 0) rep.add(FASTBALLS[1 + (h % 2)]);
+  rep.add(BREAKING[h % BREAKING.length]);
+  rep.add(BREAKING[(h >>> 4) % BREAKING.length]);
+  return [...rep];
+}
+
+const PITCH_ACTIONS: Record<'ball' | 'called' | 'swing' | 'foul', string[]> = {
+  ball: ['を見極めてボール', 'を見送ってボール', 'がボールの判定'],
+  called: ['を見逃してストライク', 'を見送ってストライク'],
+  swing: ['に空振り', 'を振り遅れて空振り', 'に手が出ず空振り'],
+  foul: ['を打ってファウル', 'をカットしてファウル', 'に詰まってファウル', 'を捉えたがファウル'],
+};
+
+/** 1球の実況。「外角高めのスライダーを見送ってボール 1-0」のように生成する */
+export function pitchLine(
+  rng: Rng,
+  repertoire: string[],
+  result: 'ball' | 'called' | 'swing' | 'foul',
+  balls: number,
+  strikes: number,
+): string {
+  const type = repertoire.length ? rng.pick(repertoire) : 'ストレート';
+  const breaking = !FASTBALLS.includes(type);
+  // 落ちる変化球がボール／空振りのときは「ワンバウンド」も使う
+  let zone: string;
+  if (breaking && (result === 'ball' || result === 'swing') && rng.chance(0.25)) {
+    zone = 'ワンバウンド';
+  } else {
+    zone = rng.pick(ZONES);
+  }
+  const action = rng.pick(PITCH_ACTIONS[result]);
+  return `${zone}の${type}${action}　${balls}-${strikes}`;
+}
+
+/** 打席ごとの状況見出し。「2番 松本剛　一死二塁」 */
+export function situationHeader(orderNo: number, name: string, outs: number, bases: [boolean, boolean, boolean]): string {
+  const o = outs === 0 ? '無死' : outs === 1 ? '一死' : '二死';
+  const on: string[] = [];
+  if (bases[0]) on.push('一');
+  if (bases[1]) on.push('二');
+  if (bases[2]) on.push('三');
+  const r = on.length === 0 ? '走者なし' : on.length === 3 ? '満塁' : on.join('・') + '塁';
+  return `${orderNo}番 ${name}　${o}${r}`;
+}
 
 // ── 場面の前置き（チャンス・ピンチの演出） ──────────────────────────────
 
@@ -102,11 +138,17 @@ export function situationLine(rng: Rng, used: Set<string>, ctx: SituCtx): string
             '押せ押せの満塁。球場の空気が変わる。',
           ]
         : diff === 0
-          ? [
-              '満塁。勝ち越しのランナーは三塁。',
-              '緊迫の同点、しかも満塁。',
-              '満塁。一本出れば一気に試合が傾く。',
-            ]
+          ? oppScore === 0
+            ? [
+                '満塁。先制のランナーが三塁に。',
+                '0-0の均衡、しかも満塁の大チャンス。',
+                '満塁。先制点はどちらに転ぶか。',
+              ]
+            : [
+                '満塁。勝ち越しのランナーは三塁。',
+                '緊迫の同点、しかも満塁。',
+                '満塁。一本出れば一気に試合が傾く。',
+              ]
           : [
               '満塁。ここで突き放したい。',
               'なおも満塁。畳みかける絶好機。',
@@ -320,7 +362,9 @@ export function pitcherNoteLine(
 
 // ── 打席結果のバリエーション ──────────────────────────────
 
-const HIT_DIRECTIONS = ['レフト', 'センター', 'ライト', '左中間', '右中間'];
+// 単打など「○前」と続けて自然なのは外野3方向のみ。ギャップ（左中間/右中間）は「を破る」で使う
+const OUTFIELD_DIRECTIONS = ['レフト', 'センター', 'ライト'];
+const GAP_DIRECTIONS = ['左中間', '右中間'];
 const GROUND_DIRECTIONS = ['ショート', 'セカンド', 'サード', 'ファースト', '投手'];
 const FLY_DIRECTIONS = ['レフト', 'センター', 'ライト'];
 
@@ -383,44 +427,48 @@ export function lineoutText(rng: Rng, used: Set<string>, label: string): string 
 }
 
 export function singleText(rng: Rng, used: Set<string>, label: string, timely: boolean): string {
-  const dir = pickFresh(rng, used, HIT_DIRECTIONS.map((d) => d));
+  const of = pickFresh(rng, used, OUTFIELD_DIRECTIONS.map((d) => d));
   if (timely) {
     return pickFresh(rng, used, [
-      `${label}、${dir}へタイムリーヒット！`,
-      `${label}、${dir}前へ運んだ！走者が還る！`,
-      `${label}、しぶとく${dir}へ落とすタイムリー！`,
-      `${label}、${dir}へ会心のタイムリーヒット！`,
+      `${label}、${of}前へタイムリーヒット！`,
+      `${label}、${of}前へ運んだ！走者が還る！`,
+      `${label}、しぶとく${of}前へ落とすタイムリー！`,
+      `${label}、${pickGap(rng)}を破るタイムリーヒット！`,
     ]);
   }
   return pickFresh(rng, used, [
-    `${label}、${dir}へ弾き返すヒット！`,
-    `${label}、${dir}前へ落ちるクリーンヒット`,
-    `${label}、${dir}へ運ぶシングルヒット`,
-    `${label}、${dir}を抜けるヒット！`,
-    `${label}、詰まりながらも${dir}前へポトリ。これもヒットだ`,
-    `${label}、ライナーで${dir}へ。素晴らしい打球だ`,
+    `${label}、${of}前へ弾き返すヒット！`,
+    `${label}、${of}前へ運ぶクリーンヒット`,
+    `${label}、${pickGap(rng)}を抜けるヒット！`,
+    `${label}、三遊間を破るヒット！`,
+    `${label}、詰まりながらも${of}前へポトリと落とすヒット`,
+    `${label}、ライナーで${of}前へ。素晴らしい打球だ`,
   ]);
 }
 
+function pickGap(rng: Rng): string {
+  return rng.pick(GAP_DIRECTIONS);
+}
+
 export function doubleText(rng: Rng, used: Set<string>, label: string, timely: boolean, entitled: boolean): string {
-  const dir = pickFresh(rng, used, HIT_DIRECTIONS.map((d) => d));
+  const dir = pickFresh(rng, used, [...GAP_DIRECTIONS, 'レフト線', 'ライト線']);
   if (entitled) {
     return pickFresh(rng, used, [
-      `${label}、${dir}へ大きなバウンド──スタンドに入った！エンタイトルツーベース`,
-      `${label}、フェンス直撃かと思われた打球はワンバウンドで場外へ。エンタイトルツーベース`,
+      `${label}、${dir}へ大きく弾んだ打球がスタンドイン！エンタイトルツーベース`,
+      `${label}、フェンス直撃かと思われた打球はワンバウンドで客席へ。エンタイトルツーベース`,
     ]);
   }
   if (timely) {
     return pickFresh(rng, used, [
       `${label}、${dir}を破るタイムリーツーベース！`,
-      `${label}、${dir}へ痛烈な二塁打！走者が生還！`,
+      `${label}、${dir}へ痛烈な二塁打！走者が還る！`,
       `${label}、フェンス際まで運ぶタイムリーツーベース！`,
     ]);
   }
   return pickFresh(rng, used, [
     `${label}、${dir}へ鋭い二塁打`,
     `${label}、${dir}を深々と破るツーベース！`,
-    `${label}、ライン際に落ちる技ありの二塁打`,
+    `${label}、${dir}際に落ちる技ありの二塁打`,
   ]);
 }
 
@@ -439,7 +487,7 @@ export function tripleText(rng: Rng, used: Set<string>, label: string, timely: b
 }
 
 export function homerunText(rng: Rng, used: Set<string>, label: string, batter: Player, runsTotal: number): string {
-  const dir = pickFresh(rng, used, HIT_DIRECTIONS.map((d) => d));
+  const dir = pickFresh(rng, used, [...OUTFIELD_DIRECTIONS, ...GAP_DIRECTIONS]);
   const name = runsTotal === 4 ? '満塁ホームラン' : runsTotal === 1 ? 'ソロホームラン' : `${runsTotal}ランホームラン`;
   const pool = [
     `${label}、打った瞬間それと分かる一発！${dir}スタンドへ${name}ーーっ！！`,
@@ -548,12 +596,20 @@ export function scoringReactionText(
       ]);
     return pickFresh(rng, used, [` ── まず${added}点を返す`, ' ── 反撃ののろしを上げた', ' ── 点差を詰める']);
   }
-  if (prevBatting === opp)
+  if (prevBatting === opp) {
+    // 0-0 からの得点は「勝ち越し」ではなく「先制」
+    if (opp === 0)
+      return pickFresh(rng, used, [
+        ' ── 待望の先制点が入る！',
+        ' ── 試合が動いた、貴重な先制点！',
+        ' ── ついに均衡を破る先制点！',
+      ]);
     return pickFresh(rng, used, [
-      ' ── ついに均衡を破った！',
+      ' ── ついに勝ち越し！',
       ' ── 勝ち越し！欲しかった1点が入る',
-      ' ── 先んじたのはこちらだ！',
+      ' ── 均衡を破って先んじた！',
     ]);
+  }
   return pickFresh(rng, used, [
     ' ── リードをさらに広げる',
     ' ── 突き放しにかかる',
@@ -561,12 +617,19 @@ export function scoringReactionText(
   ]);
 }
 
-// ── マウンドでの間（NPB流: 投手コーチ・捕手） ──────────────────────────────
+// ── マウンドでの間（NPB流: 投手コーチ・監督・野手） ──────────────────────────────
 
-export function moundVisitText(rng: Rng, used: Set<string>, pitcher: Player): string {
+export function moundVisitText(rng: Rng, used: Set<string>, pitcher: Player, manager: boolean): string {
+  if (manager) {
+    return pickFresh(rng, used, [
+      `🤝 ここで監督が自らマウンドへ。直接${pitcher.name}に言葉をかける`,
+      `🤝 動いたのは監督本人。マウンドの${pitcher.name}とじっくり話し込む`,
+    ]);
+  }
   return pickFresh(rng, used, [
-    `🤝 ここで投手コーチがゆっくりとマウンドへ。${pitcher.name}に間を与える`,
-    `🤝 捕手がマウンドに駆け寄り、${pitcher.name}とひと言ふた言。呼吸を整える`,
-    `🤝 内野陣がマウンドに集まる。${pitcher.name}、大きく息を吐いた`,
+    `🤝 投手コーチがゆっくりとマウンドへ向かう。${pitcher.name}に間を与える`,
+    `🤝 ベンチが動いた。投手コーチがマウンドで${pitcher.name}に声をかける`,
+    `🤝 捕手がマウンドに駆け寄り、${pitcher.name}とひと呼吸おく`,
+    `🤝 内野陣がマウンドに集まり、${pitcher.name}を落ち着かせる`,
   ]);
 }

@@ -8,12 +8,14 @@ import { TeamCard } from './ui/TeamCard';
 
 type Phase = 'preview' | 'playing' | 'finished';
 
-// pitch: 1球の間 / char: 2文字あたりのタイプ速度 / pause: 結果行のあとの溜め
+// pitch: 1球の間 / char: 1文字あたりのタイプ速度(ms) / pause: 結果行のあとの溜め
 const SPEEDS = [
-  { label: 'ゆっくり', pitch: 500, char: 50, pause: 900 },
-  { label: 'ふつう', pitch: 240, char: 26, pause: 520 },
-  { label: '速い', pitch: 70, char: 0, pause: 140 },
+  { label: 'じっくり', pitch: 1100, char: 75, pause: 1700 },
+  { label: 'ゆっくり', pitch: 650, char: 45, pause: 1050 },
+  { label: 'ふつう', pitch: 320, char: 22, pause: 560 },
+  { label: '速い', pitch: 80, char: 0, pause: 150 },
 ];
+const DEFAULT_SPEED = 1; // 「ゆっくり」を初期選択に
 
 /** リーグから対戦カードを1つ選ぶ */
 function pickMatchup(league: LeagueState): { away: Team; home: Team; seed: number } {
@@ -38,7 +40,7 @@ export function App() {
   const [cursor, setCursor] = useState(0); // 再生中のイベント index
   const [chars, setChars] = useState(0); // 現在行のタイプライター進行
   const [phase, setPhase] = useState<Phase>('preview');
-  const [speedIdx, setSpeedIdx] = useState(1);
+  const [speedIdx, setSpeedIdx] = useState(DEFAULT_SPEED);
   const logRef = useRef<HTMLDivElement>(null);
 
   // ── 再生エンジン ──
@@ -56,10 +58,19 @@ export function App() {
     if (ev.kind === 'pitch') {
       t = window.setTimeout(() => setCursor((c) => c + 1), sp.pitch);
     } else if (sp.char > 0 && chars < ev.text.length) {
-      t = window.setTimeout(() => setChars((c) => Math.min(ev.text.length, c + 2)), sp.char);
+      t = window.setTimeout(() => setChars((c) => Math.min(ev.text.length, c + 1)), sp.char);
     } else {
-      // 行を読み切ったあとの溜め。大きいプレーほど長く余韻を残す
-      const weight = ev.kind === 'homerun' ? 2.4 : ev.kind === 'score' || ev.kind === 'injury' ? 1.8 : ev.kind === 'sub' || ev.kind === 'mound' ? 1.4 : 1;
+      // 行を読み切ったあとの溜め。大きいプレーほど長く余韻を残す。状況見出しは短く
+      const weight =
+        ev.kind === 'homerun'
+          ? 2.4
+          : ev.kind === 'score' || ev.kind === 'injury'
+            ? 1.8
+            : ev.kind === 'sub' || ev.kind === 'mound'
+              ? 1.4
+              : ev.kind === 'situation'
+                ? 0.5
+                : 1;
       t = window.setTimeout(() => {
         setChars(0);
         setCursor((c) => c + 1);
@@ -192,6 +203,11 @@ export function App() {
                 <div className="live__vs">
                   <span className="live__role">打</span> {live.batter}
                   <span className="live__role live__role--p">投</span> {live.pitcher}
+                  {live.count && (
+                    <span className="live__count">
+                      {live.count[0]}-{live.count[1]}
+                    </span>
+                  )}
                 </div>
               )}
               {current?.kind === 'pitch' && <div className="live__pitch">{current.text}</div>}
@@ -225,6 +241,8 @@ export function App() {
                 <div key={i} className={`log__line log__line--${ev.kind}`}>
                   {ev.kind === 'info' ? (
                     <span className="log__info">{text}</span>
+                  ) : ev.kind === 'situation' ? (
+                    <span className="log__situation">{text}</span>
                   ) : (
                     <>
                       <span className="log__meta">
