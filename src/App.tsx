@@ -5,6 +5,7 @@ import { applyGame, loadLeague, newLeague, resetLeague, saveLeague, seasonContex
 import { Scoreboard } from './ui/Scoreboard';
 import { Diamond } from './ui/Diamond';
 import { TeamCard } from './ui/TeamCard';
+import { PlayLog } from './ui/PlayLog';
 
 type Phase = 'preview' | 'playing' | 'finished';
 
@@ -127,9 +128,6 @@ export function App() {
   const played = useMemo(() => (result ? result.events.slice(0, cursor + 1) : []), [result, cursor]);
   const current: GameEvent | undefined = played[played.length - 1];
 
-  // ログ行: pitch 以外。現在行はタイプ進行ぶんだけ見せる
-  const logEvents = useMemo(() => played.filter((e) => e.kind !== 'pitch'), [played]);
-
   // ライブパネル: 直近のカウント・打者・投手
   const live = useMemo(() => {
     let count: [number, number] | undefined;
@@ -233,34 +231,7 @@ export function App() {
             )}
           </div>
 
-          <div className="log" ref={logRef}>
-            {logEvents.map((ev, i) => {
-              const isCurrent = phase === 'playing' && i === logEvents.length - 1 && ev === current;
-              const text = isCurrent && sp.char > 0 ? ev.text.slice(0, chars) : ev.text;
-              return (
-                <div key={i} className={`log__line log__line--${ev.kind}`}>
-                  {ev.kind === 'info' ? (
-                    <span className="log__info">{text}</span>
-                  ) : ev.kind === 'situation' ? (
-                    <span className="log__situation">{text}</span>
-                  ) : (
-                    <>
-                      <span className="log__meta">
-                        {ev.inning}回{ev.half === 'top' ? '表' : '裏'}
-                      </span>
-                      <span className="log__text">
-                        {text}
-                        {isCurrent && chars < ev.text.length && <span className="log__cursor">▌</span>}
-                      </span>
-                      <span className="log__score">
-                        {ev.score[0]}-{ev.score[1]}
-                      </span>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <PlayLog events={played} current={current} chars={chars} typing={sp.char > 0} scrollRef={logRef} />
         </section>
       )}
 

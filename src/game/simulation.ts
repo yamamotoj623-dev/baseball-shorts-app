@@ -44,6 +44,8 @@ interface GameMemory {
   used: Set<string>;
   batters: Map<string, C.BatterDay>;
   pitchers: Map<string, C.PitcherDay>;
+  /** 打席通し番号（折りたたみ表示のグルーピング用） */
+  pa: number;
 }
 
 /** シーズン通算成績（リーグ永続化層から渡される。実況の前置きに使う） */
@@ -401,6 +403,10 @@ function playHalfInning(
     const batterLabel = `${orderNo}番 ${batter.name}`;
     const day = batterDay(mem, batter);
 
+    // この打席に属するイベントを束ねるID
+    mem.pa += 1;
+    const paId = mem.pa;
+
     // 打席ごとの状況見出し（◯番 ◯◯　一死二塁）
     push(
       C.situationHeader(orderNo, batter.name, state.outs, [
@@ -409,12 +415,12 @@ function playHalfInning(
         Boolean(state.bases[2]),
       ]),
       'situation',
-      { batter: batterLabel },
+      { batter: batterLabel, paId },
     );
 
     // 打席紹介（今日の成績・特徴に言及。出しすぎない）
     const intro = C.batterIntroLine(rng, mem.used, batterLabel, batter, day, season?.bat.get(batter.id));
-    if (intro) push(intro, 'mound', { batter: batterLabel });
+    if (intro) push(intro, 'mound', { batter: batterLabel, paId });
 
     const prefix = C.situationLine(rng, mem.used, {
       bases: [Boolean(state.bases[0]), Boolean(state.bases[1]), Boolean(state.bases[2])],
@@ -473,7 +479,7 @@ function playHalfInning(
       // 「外角高めのスライダーを見送ってボール 1-0」のように球種・コース・カウントを実況
       let pitchText = C.pitchLine(rng, def.repertoire, result, balls, strikes);
       if (balls === 3 && strikes === 2) pitchText += '（フルカウント）';
-      push(pitchText, 'pitch', { count: [balls, strikes], batter: batterLabel });
+      push(pitchText, 'pitch', { count: [balls, strikes], batter: batterLabel, paId });
     }
 
     // ── 打席結果の処理 ──
@@ -501,7 +507,7 @@ function playHalfInning(
           const li = off.lineup.findIndex((pl) => pl.id === batter.id);
           if (li >= 0) off.lineup[li] = sub;
           for (let b = 0; b < 3; b++) if (state.bases[b]?.id === batter.id) state.bases[b] = sub;
-          push(text, kind, { batter: batterLabel });
+          push(text, kind, { batter: batterLabel, paId });
           text = `⚠️ ${batter.name}、患部を押さえてベンチへ下がる……${sub.name}が代わって塁に就いた`;
           kind = 'injury';
         }
@@ -640,7 +646,7 @@ function playHalfInning(
     }
 
     if (prefix && kind !== 'injury') text = prefix + text;
-    push(text, kind, { batter: batterLabel });
+    push(text, kind, { batter: batterLabel, paId });
 
     if (walkoff) return { runs: state.runs, hits, walkoff: true };
 
@@ -696,7 +702,7 @@ export function simulateGame(away: Team, home: Team, seed: number = Date.now(), 
 
   const awaySide = makeSide(away);
   const homeSide = makeSide(home);
-  const mem: GameMemory = { used: new Set(), batters: new Map(), pitchers: new Map() };
+  const mem: GameMemory = { used: new Set(), batters: new Map(), pitchers: new Map(), pa: 0 };
 
   let inning = 1;
   const maxInnings = 12;

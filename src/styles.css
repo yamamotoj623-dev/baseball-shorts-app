@@ -440,16 +440,110 @@ body {
   font-weight: 700;
   font-size: 16px;
 }
-.log__line--situation {
-  border-bottom: none;
-  padding: 12px 4px 2px;
+
+/* ---- 打席ブロック（折りたたみ） ---- */
+.pa {
+  margin: 8px 0;
+  border-left: 3px solid var(--line);
+  padding-left: 10px;
 }
-.log__situation {
+.pa--live {
+  border-left-color: var(--accent);
+}
+.pa--reach {
+  border-left-color: var(--green);
+}
+.pa--out {
+  border-left-color: #4b535d;
+}
+.pa--injury {
+  border-left-color: var(--red);
+}
+.pa__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: transparent;
+  border: none;
   color: var(--text);
   font-weight: 700;
   font-size: 15px;
-  border-left: 3px solid var(--accent);
-  padding-left: 8px;
+  text-align: left;
+  padding: 4px 0;
+  cursor: pointer;
+}
+.pa__header:disabled {
+  cursor: default;
+}
+.pa__toggle {
+  color: var(--muted);
+  font-size: 13px;
+  flex: 0 0 auto;
+}
+.pa__note {
+  color: #9db4d0;
+  font-size: 14px;
+  padding: 3px 0 3px 2px;
+  font-style: italic;
+}
+.pa__pitch {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+.pa__pnum {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pa__ptext {
+  flex: 1 1 auto;
+}
+.pa__result {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 0 7px;
+  font-size: 16px;
+  color: var(--text);
+}
+.pa__score {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 13px;
+}
+.pa__result--hit {
+  color: var(--green);
+  font-weight: 600;
+}
+.pa__result--homerun {
+  color: var(--gold);
+  font-weight: 800;
+}
+.pa__result--score {
+  color: var(--gold);
+  font-weight: 700;
+}
+.pa__result--walk {
+  color: #79c0ff;
+}
+.pa__result--injury {
+  color: var(--red);
+  font-weight: 700;
 }
 .log__line--pitch .log__text {
   color: var(--muted);

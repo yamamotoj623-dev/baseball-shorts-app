@@ -95,6 +95,8 @@ export interface GameEvent {
   batter?: string;
   /** 現在の投手ラベル（例: 「高橋匠（52球）」） */
   pitcherLabel?: string;
+  /** 同じ打席に属するイベントをまとめるためのID（折りたたみ表示用） */
+  paId?: number;
 }
 
 /** 1試合の打者個人成績 */
