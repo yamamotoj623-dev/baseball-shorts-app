@@ -6,7 +6,7 @@ import type { GameResult, Player, Team } from './types';
 import type { SeasonBatterInfo, SeasonPitcherInfo } from './commentary';
 import type { SeasonContext } from './simulation';
 import { createRng, type Rng } from './rng';
-import { generateLeague, payrollOf, salaryFor, signPlayer } from './players';
+import { generateLeague, payrollOf, playerValue, salaryFor, signPlayer, upgradeTeam } from './players';
 
 const STORAGE_KEY = 'baseball-sim-league-v1';
 const RECENT_GAMES = 5;
@@ -65,6 +65,11 @@ export interface LeagueState {
   staminaAt?: number;
   /** 再配分チケット（選手の能力を振り直すのに1枚必要） */
   tickets?: number;
+  /** 二軍の通算成績（一軍とは別集計） */
+  farmBat?: Record<string, { g: number; ab: number; h: number; hr: number; rbi: number }>;
+  farmPit?: Record<string, { g: number; outs: number; runs: number; k: number }>;
+  /** 現役ドラフトを実施済みの年度 */
+  genDraftYear?: number;
 }
 
 // ── スタミナ・チケット経済（将来の課金ポイント） ──────────────────────────────
@@ -125,6 +130,8 @@ export function newLeague(): LeagueState {
     stamina: STAMINA_MAX,
     staminaAt: Date.now(),
     tickets: 3,
+    farmBat: {},
+    farmPit: {},
   };
 }
 
@@ -142,6 +149,10 @@ export function loadLeague(): LeagueState | null {
     parsed.stamina ??= STAMINA_MAX;
     parsed.staminaAt ??= Date.now();
     parsed.tickets ??= 3;
+    parsed.farmBat ??= {};
+    parsed.farmPit ??= {};
+    const mig = createRng(7777);
+    for (const t of parsed.teams) upgradeTeam(t, mig);
     return parsed;
   } catch {
     return null;
@@ -308,6 +319,14 @@ export function progressTick(league: LeagueState, result: GameResult): string[] 
   const awayWon = result.away.runs > result.home.runs;
   const appeared = new Set([...Object.keys(result.batting), ...Object.keys(result.pitching)]);
 
+  // 調子の変動・投手の休養・自軍の二軍戦
+  for (const team of league.teams) {
+    driftCondition(team, rng);
+    const played = team.shortName === result.away.team.shortName || team.shortName === result.home.team.shortName;
+    if (played) applyRest(team, appeared);
+    if (team.shortName === myShort) simulateFarmGame(league, team, rng);
+  }
+
   for (const team of [result.away.team, result.home.team]) {
     const won = team === result.away.team ? awayWon : homeWon;
     const lost = team === result.away.team ? homeWon : awayWon;
@@ -376,6 +395,153 @@ export function progressTick(league: LeagueState, result: GameResult): string[] 
 
   league.news = [...news, ...(league.news ?? [])].slice(0, 8);
   return news;
+}
+
+// ── ローテーション・休養・調子・二軍 ──────────────────────────────
+
+/** 今日の先発をローテから選ぶ（休養中はスキップ）。team.pitcher を更新する */
+export function rotateStarter(team: Team): void {
+  const rot = team.rotation ?? [team.pitcher];
+  if (rot.length === 0) return;
+  let idx = team.rotationIdx ?? 0;
+  for (let i = 0; i < rot.length; i++) {
+    const cand = rot[(idx + i) % rot.length];
+    if ((cand.rest ?? 0) <= 0) {
+      team.pitcher = cand;
+      team.rotationIdx = (idx + i + 1) % rot.length;
+      return;
+    }
+  }
+  // 全員休養中なら最も回復が近い投手を強行登板
+  team.pitcher = rot[idx % rot.length];
+  team.rotationIdx = (idx + 1) % rot.length;
+}
+
+/** 登板した投手に休養を課し、他は1回復させる（試合後に呼ぶ） */
+function applyRest(team: Team, appeared: Set<string>): void {
+  const rot = team.rotation ?? [];
+  for (const p of [...rot, ...team.bullpen]) {
+    if (appeared.has(p.id)) {
+      // 先発はローテ1巡（中3試合）、リリーフは1試合休み
+      p.rest = rot.includes(p) ? 3 : 1;
+    } else {
+      p.rest = Math.max(0, (p.rest ?? 0) - 1);
+    }
+  }
+}
+
+/** 調子をランダムウォークさせる（全員、試合ごと） */
+function driftCondition(team: Team, rng: Rng): void {
+  const all = [...team.lineup, ...(team.rotation ?? []), ...team.bullpen, ...team.bench, ...(team.farm ?? [])];
+  for (const p of all) {
+    const c = p.condition ?? 2;
+    const r = rng.next();
+    p.condition = r < 0.18 ? Math.min(4, c + 1) : r < 0.36 ? Math.max(0, c - 1) : c;
+  }
+}
+
+/** 自軍の二軍戦を簡易シミュレートして二軍成績を蓄積する */
+function simulateFarmGame(league: LeagueState, team: Team, rng: Rng): void {
+  for (const p of team.farm ?? []) {
+    if (p.pitches) {
+      const t = ((league.farmPit ??= {})[p.id] ??= { g: 0, outs: 0, runs: 0, k: 0 });
+      t.g += 1;
+      t.outs += 9 + rng.int(0, 7); // 3〜5回
+      const quality = (p.pitches.velocity + p.pitches.control) / 2;
+      t.runs += Math.max(0, rng.int(0, 5) - Math.floor((quality - 40) / 15));
+      t.k += rng.int(1, 6);
+    } else {
+      const t = ((league.farmBat ??= {})[p.id] ??= { g: 0, ab: 0, h: 0, hr: 0, rbi: 0 });
+      t.g += 1;
+      const ab = 3 + rng.int(0, 2);
+      t.ab += ab;
+      let h = 0;
+      for (let i = 0; i < ab; i++) if (rng.chance(0.18 + p.bats.meet / 400)) h += 1;
+      t.h += h;
+      if (rng.chance(p.bats.power / 600)) {
+        t.hr += 1;
+        t.rbi += 1 + rng.int(0, 2);
+      } else if (h > 0 && rng.chance(0.3)) {
+        t.rbi += 1;
+      }
+    }
+  }
+}
+
+// ── トレード・現役ドラフト ──────────────────────────────
+
+/** トレード提案。AIは価値が釣り合えば受ける（自分の選手価値の92%以上を要求） */
+export function proposeTrade(league: LeagueState, mine: Player, theirs: Player, theirTeam: Team): boolean {
+  const my = myTeamOf(league);
+  if (!my) return false;
+  if (playerValue(mine) < playerValue(theirs) * 0.92) return false; // 安すぎる提案は拒否
+
+  const swapOut = (team: Team, p: Player, incoming: Player): boolean => {
+    const groups: Player[][] = [team.lineup, team.bench, team.rotation ?? [], team.bullpen, team.farm ?? []];
+    for (const g of groups) {
+      const i = g.findIndex((x) => x.id === p.id);
+      if (i >= 0) {
+        // 野手同士はポジションを引き継ぐ
+        if (!p.pitches && !incoming.pitches) incoming.position = p.position;
+        g[i] = incoming;
+        if (team.pitcher.id === p.id) team.pitcher = incoming;
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // 同タイプ（投手⇔投手 / 野手⇔野手）のみ成立
+  if (Boolean(mine.pitches) !== Boolean(theirs.pitches)) return false;
+  if (!swapOut(my, mine, theirs)) return false;
+  swapOut(theirTeam, theirs, mine);
+  league.news = [`🤝 トレード成立: ${mine.name} ⇄ ${theirs.name}（${theirTeam.shortName}）`, ...(league.news ?? [])].slice(0, 8);
+  return true;
+}
+
+/** 現役ドラフト候補（他球団の控え・二軍からモチベーションの低い選手を1人ずつ） */
+export function genDraftCandidates(league: LeagueState): { player: Player; team: Team }[] {
+  const my = league.myTeam;
+  const cands: { player: Player; team: Team }[] = [];
+  for (const team of league.teams) {
+    if (team.shortName === my) continue;
+    const pool = [...team.bench, ...(team.farm ?? [])].filter((p) => !p.ikusei);
+    if (pool.length === 0) continue;
+    pool.sort((a, b) => (a.motivation ?? 60) - (b.motivation ?? 60));
+    cands.push({ player: pool[0], team });
+  }
+  return cands;
+}
+
+/** 現役ドラフトで1人指名（自軍の最低モチベ控えが相手球団へ）。年1回 */
+export function executeGenDraft(league: LeagueState, pick: { player: Player; team: Team }): boolean {
+  const my = myTeamOf(league);
+  if (!my) return false;
+  const year = Math.floor(league.games / SEASON_LENGTH);
+  if (league.genDraftYear === year) return false;
+
+  // 相手球団から外す
+  const groups: Player[][] = [pick.team.bench, pick.team.farm ?? []];
+  let removed = false;
+  for (const g of groups) {
+    const i = g.findIndex((x) => x.id === pick.player.id);
+    if (i >= 0) {
+      // 自軍から放出する選手（モチベ最低の控え）
+      const myPool = [...my.bench];
+      myPool.sort((a, b) => (a.motivation ?? 60) - (b.motivation ?? 60));
+      const out = myPool[0];
+      const oi = my.bench.findIndex((x) => x.id === out.id);
+      g[i] = out; // 相手に渡す
+      my.bench[oi] = pick.player; // 自軍に加える
+      pick.player.motivation = 75; // 新天地で心機一転
+      removed = true;
+      break;
+    }
+  }
+  if (!removed) return false;
+  league.genDraftYear = year;
+  league.news = [`📋 現役ドラフト: ${pick.player.name}を獲得（${pick.team.shortName}へ控え選手を放出）`, ...(league.news ?? [])].slice(0, 8);
+  return true;
 }
 
 /** 実況用のシーズンサマリを構築する */

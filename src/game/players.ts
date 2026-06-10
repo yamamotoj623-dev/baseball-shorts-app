@@ -279,7 +279,11 @@ export function generateTeam(rng: Rng, meta: { name: string; short: string }, st
     makeReliever(rng, strength + 4, 8), // 抑え: 球速ボーナス
   ];
 
-  dedupeNames([...lineup, pitcher, ...bench, ...bullpen], rng);
+  // 先発ローテーション（今日の先発＋控え2枚）と二軍・スカウト
+  const rotation = [pitcher, makePitcher(rng, strength - 3), makePitcher(rng, strength - 6)];
+  const farm = makeFarm(rng, strength);
+
+  dedupeNames([...lineup, ...rotation, ...bench, ...bullpen, ...farm], rng);
 
   return {
     name: meta.name,
@@ -288,11 +292,76 @@ export function generateTeam(rng: Rng, meta: { name: string; short: string }, st
     pitcher,
     bench,
     bullpen,
+    rotation,
+    farm,
+    rotationIdx: 0,
+    scout: { name: makeName(rng), skill: stat(rng, 55, 20) },
     manager: generateManager(rng),
     coaches: generateCoaches(rng),
     funds: PAYROLL_CAP,
   };
 }
+
+/** 二軍を生成（若手中心、うち2人は育成契約） */
+function makeFarm(rng: Rng, strength: number): Player[] {
+  const farm: Player[] = [
+    makeBatter(rng, rng.pick(FIELD_POSITIONS), strength - 10),
+    makeBatter(rng, rng.pick(FIELD_POSITIONS), strength - 12),
+    makeBatter(rng, rng.pick(FIELD_POSITIONS), strength - 14),
+    makePitcher(rng, strength - 10),
+    makeBatter(rng, rng.pick(FIELD_POSITIONS), strength - 16),
+    makePitcher(rng, strength - 16),
+  ];
+  for (const p of farm) {
+    p.age = 18 + rng.int(0, 6); // 二軍は若手
+    p.potential = stat(rng, 62, 22); // 伸びしろは大きめ
+  }
+  farm[4].ikusei = true;
+  farm[5].ikusei = true;
+  return farm;
+}
+
+/** 旧セーブデータにローテ・二軍・スカウト・調子を補完する */
+export function upgradeTeam(team: Team, rng: Rng): void {
+  if (!team.rotation || team.rotation.length === 0) {
+    team.rotation = [team.pitcher, makePitcher(rng, 48), makePitcher(rng, 45)];
+  }
+  if (!team.farm) team.farm = makeFarm(rng, 48);
+  if (!team.scout) team.scout = { name: makeName(rng), skill: stat(rng, 55, 20) };
+  team.rotationIdx ??= 0;
+  for (const p of [...team.lineup, ...team.rotation, ...team.bullpen, ...team.bench, ...team.farm]) {
+    p.condition ??= 2;
+    p.rest ??= 0;
+  }
+}
+
+/** ポジション分類（UI色分け用）: p=投手 / c=捕手 / if=内野 / of=外野 / dh=指名打者 */
+export function posClass(pos: Position): 'p' | 'c' | 'if' | 'of' | 'dh' {
+  if (pos === '投') return 'p';
+  if (pos === '捕') return 'c';
+  if (pos === '左' || pos === '中' || pos === '右') return 'of';
+  if (pos === '指') return 'dh';
+  return 'if';
+}
+
+/** 調子マーク（パワプロ風 5段階） */
+export const CONDITION_MARKS = ['⤵', '↘', '→', '↗', '⤴'] as const;
+export const CONDITION_LABELS = ['絶不調', '不調', '普通', '好調', '絶好調'] as const;
+
+/** トレード・現役ドラフトで使う選手価値（能力＋若さ） */
+export function playerValue(p: Player): number {
+  const pts = pointsUsed(p);
+  const youth = Math.max(0, 30 - (p.age ?? 27)) * 3;
+  return pts + youth + (p.abilities?.length ?? 0) * 12;
+}
+
+/** 支配下人数（育成を除く全選手） */
+export function registeredCount(team: Team): number {
+  const all = [...team.lineup, ...(team.rotation ?? [team.pitcher]), ...team.bullpen, ...team.bench, ...(team.farm ?? [])];
+  return all.filter((p) => !p.ikusei).length;
+}
+
+export const REGISTERED_LIMIT = 30; // 支配下登録の上限（簡略版）
 
 function makeReliever(rng: Rng, strength: number, velocityBonus: number): Player {
   const p = makePitcher(rng, strength);

@@ -55,6 +55,12 @@ export interface Player {
   motivation?: number;
   /** 隠し成長性 0-100（高いほど伸びる） */
   potential?: number;
+  /** 調子 0-4（0=絶不調〜4=絶好調。試合ごとに変動し能力に反映） */
+  condition?: number;
+  /** 登板後の残り休養試合数（投手。0で登板可） */
+  rest?: number;
+  /** 育成契約か（一軍出場には支配下登録が必要） */
+  ikusei?: boolean;
 }
 
 /** 監督（采配と性格） */
@@ -90,6 +96,14 @@ export interface Team {
   coaches?: Coach[];
   /** 球団資金（万円） */
   funds?: number;
+  /** 先発ローテーション（pitcher は「今日の先発」。試合ごとに巡る） */
+  rotation?: Player[];
+  /** 二軍（育成契約者を含む） */
+  farm?: Player[];
+  /** スカウト（ドラフトで選手の能力をどこまで見抜けるか） */
+  scout?: { name: string; skill: number };
+  /** ローテの巡り（次に投げる先発の index） */
+  rotationIdx?: number;
 }
 
 /** 1試合の集計（簡易ボックススコア） */

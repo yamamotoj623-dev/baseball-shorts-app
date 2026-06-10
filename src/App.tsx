@@ -3,6 +3,7 @@ import { simulateGame } from './game/simulation';
 import type { GameEvent, GameResult, Player, Team } from './game/types';
 import {
   applyDraft,
+  rotateStarter,
   applyGame,
   loadLeague,
   newLeague,
@@ -30,9 +31,10 @@ import { TeamSelect } from './ui/TeamSelect';
 import { Draft } from './ui/Draft';
 import { TeamBuilder, PlayerEditor } from './ui/TeamBuilder';
 import { StatsPanel } from './ui/StatsPanel';
+import { RosterEditor } from './ui/RosterEditor';
 
 type Phase = 'preview' | 'playing' | 'finished';
-type Screen = 'select' | 'build' | 'draft' | 'game' | 'stats';
+type Screen = 'select' | 'build' | 'draft' | 'game' | 'stats' | 'roster';
 const DRAFT_PICKS = 3;
 
 // pitch: 1球の間 / char: 1文字あたりのタイプ速度(ms) / pause: 結果行のあとの溜め
@@ -67,11 +69,20 @@ function pickMatchup(league: LeagueState): { away: Team; home: Team; seed: numbe
     hi = Math.floor(Math.random() * (n - 1));
     if (hi >= ai) hi += 1;
   }
+  rotateStarter(teams[ai]);
+  rotateStarter(teams[hi]);
   return { away: teams[ai], home: teams[hi], seed };
 }
 
 function freshPool(): Player[] {
   return generateDraftPool(createRng((Math.random() * 2 ** 31) >>> 0), 9);
+}
+
+/** プール内で他球団と競合する選手（価値上位3人） */
+function competingOf(pool: Player[]): Set<string> {
+  const v = (p: Player) =>
+    p.pitches ? p.pitches.velocity + p.pitches.control + p.pitches.stamina : p.bats.meet + p.bats.power + p.bats.speed;
+  return new Set([...pool].sort((a, b) => v(b) - v(a)).slice(0, 3).map((p) => p.id));
 }
 
 export function App() {
@@ -112,13 +123,26 @@ export function App() {
 
   const onDraftConfirm = useCallback(
     (picks: Player[]) => {
-      applyDraft(league, picks);
+      // 競合選手はくじ引き（50%）。外れたら他球団へ
+      const competing = competingOf(draftPool);
+      const won: Player[] = [];
+      const lost: string[] = [];
+      for (const p of picks) {
+        if (competing.has(p.id) && Math.random() < 0.5) lost.push(p.name);
+        else won.push(p);
+      }
+      const signed = applyDraft(league, won);
+      const lines = [
+        ...lost.map((n) => `💔 ${n}は抽選で他球団へ…交渉権を逃した`),
+        ...signed.map((r) => `✍️ ${r.signed}を獲得（${r.released}が退団）`),
+      ];
+      league.news = [...lines, ...(league.news ?? [])].slice(0, 8);
       saveLeague(league);
       setLeague({ ...league });
       setMatchup(pickMatchup(league));
       setScreen('game');
     },
-    [league],
+    [league, draftPool],
   );
 
   const onDraftSkip = useCallback(() => {
@@ -310,8 +334,25 @@ export function App() {
 
       {screen === 'stats' && myTeam && <StatsPanel league={league} team={myTeam} onClose={() => setScreen('game')} />}
 
+      {screen === 'roster' && myTeam && (
+        <RosterEditor
+          league={league}
+          team={myTeam}
+          onChange={() => {
+            saveLeague(league);
+            setLeague({ ...league });
+          }}
+          onClose={() => {
+            saveLeague(league);
+            setLeague({ ...league });
+            setMatchup(pickMatchup(league));
+            setScreen('game');
+          }}
+        />
+      )}
+
       {screen === 'draft' && myTeam && (
-        <Draft team={myTeam} pool={draftPool} maxPicks={DRAFT_PICKS} onConfirm={onDraftConfirm} onSkip={onDraftSkip} />
+        <Draft team={myTeam} pool={draftPool} maxPicks={DRAFT_PICKS} competing={competingOf(draftPool)} onConfirm={onDraftConfirm} onSkip={onDraftSkip} />
       )}
 
       {screen === 'game' && (
@@ -355,6 +396,9 @@ export function App() {
                 </button>
                 <button className="btn" onClick={openDraft}>
                   ✍️ 補強
+                </button>
+                <button className="btn" onClick={() => setScreen('roster')}>
+                  ⚙️ 編成
                 </button>
                 <button className="btn" onClick={() => setScreen('stats')}>
                   📊 成績

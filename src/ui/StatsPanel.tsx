@@ -134,6 +134,48 @@ export function StatsPanel({ league, team, onClose }: Props) {
         </div>
       )}
 
+      <h3 className="stats__sub">二軍成績（ファーム）</h3>
+      {(team.farm ?? []).length === 0 ? (
+        <p className="stats__empty">二軍に選手がいません。</p>
+      ) : (
+        <div className="stats__scroll">
+          <table className="stats__table">
+            <thead>
+              <tr>
+                <th className="stats__name">選手</th>
+                <th>区分</th>
+                <th>試合</th>
+                <th>率/防</th>
+                <th>本/K</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(team.farm ?? []).map((p) => {
+                const fb = league.farmBat?.[p.id];
+                const fp = league.farmPit?.[p.id];
+                return (
+                  <tr key={p.id}>
+                    <td className="stats__name">{p.name}{p.ikusei ? '（育成）' : ''}</td>
+                    <td>{p.pitches ? '投' : '野'}</td>
+                    <td>{fb?.g ?? fp?.g ?? 0}</td>
+                    <td>
+                      {p.pitches
+                        ? fp && fp.outs > 0
+                          ? ((fp.runs * 27) / fp.outs).toFixed(2)
+                          : '-'
+                        : fb && fb.ab > 0
+                          ? f3(fb.h / fb.ab)
+                          : '-'}
+                    </td>
+                    <td>{p.pitches ? fp?.k ?? 0 : fb?.hr ?? 0}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <h3 className="stats__sub">リーグOPSランキング（規定打数 {minAb}）</h3>
       {leaders.length === 0 ? (
         <p className="stats__empty">規定到達者なし。</p>

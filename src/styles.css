@@ -1179,6 +1179,252 @@ body {
   margin-top: 4px;
 }
 
+/* ---- ポジション色分け（パワプロ準拠: 投=青/捕=ピンク/内野=黄/外野=緑/DH=灰） ---- */
+.posb {
+  display: inline-block;
+  min-width: 26px;
+  text-align: center;
+  border-radius: 6px;
+  padding: 2px 4px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #0d1117;
+}
+.posb--p {
+  background: #58a6ff;
+}
+.posb--c {
+  background: #f78fb3;
+}
+.posb--if {
+  background: #e3b341;
+}
+.posb--of {
+  background: #56d364;
+}
+.posb--dh {
+  background: #8b949e;
+}
+
+/* ---- 調子マーク ---- */
+.cond {
+  display: inline-block;
+  width: 20px;
+  text-align: center;
+  font-weight: 900;
+  font-size: 15px;
+}
+.cond--4 {
+  color: #ff5d8f;
+  text-shadow: 0 0 6px rgba(255, 93, 143, 0.6);
+}
+.cond--3 {
+  color: #ffa657;
+}
+.cond--2 {
+  color: #d2a8ff00;
+  color: #8b949e;
+}
+.cond--1 {
+  color: #79c0ff;
+}
+.cond--0 {
+  color: #5871f5;
+}
+
+/* ---- 編成画面 ---- */
+.roster-ed {
+  margin-top: 14px;
+}
+.roster-ed__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.roster-ed__title {
+  font-size: 18px;
+  margin: 0;
+}
+.roster-ed__tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+.tab {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: 10px 10px 0 0;
+  padding: 9px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tab--on {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--panel-2);
+}
+.roster-ed__hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 10px;
+  line-height: 1.6;
+}
+.roster-ed__sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 14px 0 6px;
+}
+.rrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 10px;
+  margin-bottom: 5px;
+  width: 100%;
+  color: var(--text);
+  font-size: 14px;
+}
+.rrow--btn {
+  cursor: pointer;
+  text-align: left;
+}
+.rrow--btn:hover {
+  border-color: var(--accent);
+}
+.rrow__no {
+  flex: 0 0 18px;
+  color: var(--muted);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.rrow__pos {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.rrow__pos--sel {
+  outline: 2px solid var(--accent);
+  border-radius: 6px;
+}
+.rrow__name {
+  flex: 1 1 auto;
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rrow__age {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 5px;
+}
+.rrow__stats {
+  flex: 0 1 auto;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rrow__btn {
+  flex: 0 0 auto;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 9px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.rrow__btn:disabled {
+  opacity: 0.35;
+}
+.rrow__sel {
+  flex: 0 0 auto;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px;
+  font-size: 12px;
+  max-width: 120px;
+}
+.rrow__rest {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--green);
+}
+.rrow__rest--ng {
+  color: var(--red);
+}
+.rrow__team {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent);
+  min-width: 38px;
+}
+.rrow__value {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+.badge-ikusei {
+  font-size: 10px;
+  background: #6e40c9;
+  color: #fff;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+.draft__hot {
+  font-size: 11px;
+  color: var(--red);
+  font-weight: 800;
+  margin-left: 6px;
+}
+
+/* ---- UI全体の質感向上 ---- */
+body {
+  background: radial-gradient(1200px 500px at 50% -100px, #16243a 0%, var(--bg) 60%);
+}
+.app__header h1 {
+  background: linear-gradient(90deg, #79c0ff, #56d364);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.teamcard,
+.scoreboard,
+.standings,
+.live__status,
+.log,
+.economy {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+.btn--primary {
+  background: linear-gradient(135deg, #2f81f7, #1f6feb);
+  box-shadow: 0 2px 8px rgba(47, 129, 247, 0.35);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .app__footer {
   margin-top: 22px;
   text-align: center;

@@ -1,5 +1,6 @@
 import type { Player, Team } from '../game/types';
 import type { BatTotals, TeamRecord } from '../game/league';
+import { PosBadge, CondMark } from './RosterEditor';
 
 interface Props {
   team: Team;
@@ -87,8 +88,8 @@ function BatterRow({
   return (
     <tr>
       <td className="roster__num">{order}</td>
-      <td className="roster__pos">{player.position}</td>
-      <td className="roster__name">{player.name}</td>
+      <td className="roster__pos"><PosBadge pos={player.position} /></td>
+      <td className="roster__name"><CondMark p={player} /> {player.name}</td>
       <td>{b.meet}</td>
       <td>{b.power}</td>
       <td>{b.speed}</td>

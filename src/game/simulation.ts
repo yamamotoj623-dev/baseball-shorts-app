@@ -64,7 +64,7 @@ function makeSide(team: Team): SideState {
     meta: team,
     lineup: team.lineup.map(clonePlayer),
     bench: team.bench.map(clonePlayer),
-    bullpen: team.bullpen.map(clonePlayer),
+    bullpen: team.bullpen.filter((p) => (p.rest ?? 0) <= 0).map(clonePlayer),
     pitcher: clonePlayer(team.pitcher),
     repertoire: C.deriveRepertoire(team.pitcher),
     pitchCount: 0,
@@ -108,10 +108,11 @@ function fielderAt(def: SideState, positions: string[], rng: Rng): Player {
 
 // ── 実効能力（モチベーション・特殊能力・投打相性を反映） ──────────────────────────────
 
-/** モチベーション補正（±6%） */
+/** モチベーション＋調子の補正（各±6%） */
 function moraleMul(p: Player): number {
   const m = p.motivation ?? 60;
-  return 0.94 + (m / 100) * 0.12;
+  const c = p.condition ?? 2;
+  return (0.94 + (m / 100) * 0.12) * (1 + (c - 2) * 0.03);
 }
 
 function has(p: Player, ability: string): boolean {
