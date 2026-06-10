@@ -2,11 +2,11 @@
 // 6球団とシーズン個人成績（直近5試合の調子を含む）を localStorage に保存し、
 // 試合をまたいで選手の物語（打率・本塁打・盗塁・防御率）が積み上がるようにする。
 
-import type { GameResult, Team } from './types';
+import type { GameResult, Player, Team } from './types';
 import type { SeasonBatterInfo, SeasonPitcherInfo } from './commentary';
 import type { SeasonContext } from './simulation';
 import { createRng } from './rng';
-import { generateLeague } from './players';
+import { generateLeague, signPlayer } from './players';
 
 const STORAGE_KEY = 'baseball-sim-league-v1';
 const RECENT_GAMES = 5;
@@ -46,6 +46,8 @@ export interface LeagueState {
   pit: Record<string, PitTotals>;
   /** チーム勝敗（チーム略称をキーに） */
   records: Record<string, TeamRecord>;
+  /** プレイヤーが選んだ自球団（略称）。未選択なら undefined */
+  myTeam?: string;
   /** 消化済み試合数 */
   games: number;
 }
@@ -133,6 +135,26 @@ export function applyGame(league: LeagueState, result: GameResult): void {
   }
 
   league.games += 1;
+}
+
+/** 自球団を設定する */
+export function setMyTeam(league: LeagueState, shortName: string): void {
+  league.myTeam = shortName;
+}
+
+/** 自球団を取得（未設定なら undefined） */
+export function myTeamOf(league: LeagueState): Team | undefined {
+  return league.teams.find((t) => t.shortName === league.myTeam);
+}
+
+/** 獲得した選手を自球団に組み込む。各獲得の「放出選手」名を返す */
+export function applyDraft(league: LeagueState, picks: Player[]): { signed: string; released: string }[] {
+  const team = myTeamOf(league);
+  if (!team) return [];
+  return picks.map((p) => {
+    const released = signPlayer(team, p);
+    return { signed: p.name, released: released.name };
+  });
 }
 
 /** 順位表の1行 */

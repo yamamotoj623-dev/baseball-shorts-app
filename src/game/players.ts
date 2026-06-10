@@ -41,10 +41,13 @@ function makeName(rng: Rng): string {
   return `${rng.pick(FAMILY_NAMES)}${rng.pick(GIVEN_NAMES)}`;
 }
 
+// セッションごとに一意なプレフィックスを付け、保存済みリーグの選手IDと
+// 新規生成（ドラフト等）の選手IDが衝突しないようにする。
+const ID_SESSION = Math.random().toString(36).slice(2, 8);
 let idCounter = 0;
 function nextId(): string {
   idCounter += 1;
-  return `p${idCounter}`;
+  return `p${ID_SESSION}${idCounter}`;
 }
 
 function makeBatter(rng: Rng, position: Position, strength: number): Player {
@@ -146,4 +149,52 @@ export function generateMatchup(rng: Rng): { away: Team; home: Team } {
   const away = generateTeam(rng, { name: awayMeta.name, short: awayMeta.short }, stat(rng, 52, 8));
   const home = generateTeam(rng, { name: homeMeta.name, short: homeMeta.short }, stat(rng, 52, 8));
   return { away, home };
+}
+
+/** ドラフト／FA市場の選手プールを生成（投手と各ポジションが混ざる。当たり外れ大きめ） */
+export function generateDraftPool(rng: Rng, size: number = 9): Player[] {
+  const pool: Player[] = [];
+  for (let i = 0; i < size; i++) {
+    // 約3割が投手
+    if (i % 3 === 0) pool.push(makePitcher(rng, stat(rng, 55, 15)));
+    else pool.push(makeBatter(rng, rng.pick(FIELD_POSITIONS), stat(rng, 55, 15)));
+  }
+  dedupeNames(pool, rng);
+  return pool;
+}
+
+const batScore = (p: Player) => p.bats.meet + p.bats.power + p.bats.speed * 0.4 + p.bats.defense * 0.4;
+const pitScore = (p: Player) => (p.pitches ? p.pitches.velocity + p.pitches.control + p.pitches.stamina : 0);
+
+/** 獲得した選手をチームに組み込む。最も弱い同種の選手を放出して枠を保つ。放出選手を返す */
+export function signPlayer(team: Team, p: Player): Player {
+  if (p.position === '投' || p.pitches) {
+    // 先発＋ブルペンの中で最弱を放出して獲得選手を入れ、最強を先発に据える
+    const arms = [team.pitcher, ...team.bullpen];
+    let wi = 0;
+    for (let i = 1; i < arms.length; i++) if (pitScore(arms[i]) < pitScore(arms[wi])) wi = i;
+    const released = arms[wi];
+    arms[wi] = p;
+    let bi = 0;
+    for (let i = 1; i < arms.length; i++) if (pitScore(arms[i]) > pitScore(arms[bi])) bi = i;
+    team.pitcher = arms[bi];
+    arms.splice(bi, 1);
+    team.bullpen = arms;
+    return released;
+  }
+  // 野手: スタメン最弱と入れ替え、守備位置を引き継ぐ
+  let wi = 0;
+  for (let i = 1; i < team.lineup.length; i++) if (batScore(team.lineup[i]) < batScore(team.lineup[wi])) wi = i;
+  const released = team.lineup[wi];
+  p.position = released.position;
+  team.lineup[wi] = p;
+  return released;
+}
+
+/** チームの総合力（打撃・投手の目安値、0〜100想定） */
+export function teamOverall(team: Team): { bat: number; pit: number } {
+  const bat = team.lineup.reduce((a, p) => a + (p.bats.meet + p.bats.power) / 2, 0) / team.lineup.length;
+  const arms = [team.pitcher, ...team.bullpen];
+  const pit = arms.reduce((a, p) => a + pitScore(p) / 3, 0) / arms.length;
+  return { bat: Math.round(bat), pit: Math.round(pit) };
 }

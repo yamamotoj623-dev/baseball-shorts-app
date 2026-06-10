@@ -637,6 +637,147 @@ body {
   color: var(--gold);
   font-weight: 700;
 }
+.teamcard--mine {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+
+/* ---- 球団選択 ---- */
+.select {
+  margin-top: 18px;
+}
+.select__title {
+  font-size: 19px;
+  margin: 0 0 4px;
+}
+.select__lead {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0 0 14px;
+}
+.select__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.select__card {
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  color: var(--text);
+}
+.select__card:hover {
+  border-color: var(--accent);
+}
+.select__short {
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+.select__name {
+  font-size: 14px;
+  margin: 2px 0 8px;
+}
+.select__ovr {
+  display: flex;
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.select__ovr span {
+  background: var(--panel-2);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+.select__ace {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---- ドラフト ---- */
+.draft {
+  margin-top: 18px;
+}
+.draft__title {
+  font-size: 19px;
+  margin: 0 0 4px;
+}
+.draft__lead {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+.draft__hint {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+}
+.draft__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.draft__card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 15px;
+}
+.draft__card--on {
+  border-color: var(--green);
+  background: rgba(63, 185, 80, 0.12);
+}
+.draft__pos {
+  flex: 0 0 auto;
+  width: 26px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 0;
+  font-size: 13px;
+}
+.draft__pname {
+  flex: 0 0 auto;
+  font-weight: 700;
+  min-width: 84px;
+}
+.draft__stats {
+  flex: 1 1 auto;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.draft__check {
+  flex: 0 0 auto;
+  color: var(--green);
+  font-weight: 800;
+  width: 18px;
+}
+.draft__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+@media (max-width: 420px) {
+  .select__grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* ---- 順位表 ---- */
 .standings {

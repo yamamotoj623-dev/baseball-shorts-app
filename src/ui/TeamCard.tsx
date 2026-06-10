@@ -8,16 +8,19 @@ interface Props {
   seasonBat?: Record<string, BatTotals>;
   /** チームの勝敗（あれば見出しに表示） */
   record?: TeamRecord;
+  /** 自球団の略称（一致すればバッジ表示） */
+  myTeam?: string;
 }
 
 /** チームの打順・先発投手を能力値つきで一覧表示（試合前プレビュー用） */
-export function TeamCard({ team, side, seasonBat, record }: Props) {
+export function TeamCard({ team, side, seasonBat, record, myTeam }: Props) {
   const hasSeason = Boolean(seasonBat && Object.keys(seasonBat).length > 0);
   const hasRecord = record && record.w + record.l + record.t > 0;
+  const isMine = myTeam === team.shortName;
   return (
-    <div className="teamcard">
+    <div className={`teamcard ${isMine ? 'teamcard--mine' : ''}`}>
       <div className="teamcard__head">
-        <span className="teamcard__side">{side}</span>
+        <span className="teamcard__side">{side}{isMine ? '・マイチーム' : ''}</span>
         <h2 className="teamcard__name">{team.name}</h2>
         {hasRecord && (
           <span className="teamcard__record">

@@ -1,23 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { simulateGame } from './game/simulation';
-import type { GameEvent, GameResult, Team } from './game/types';
+import type { GameEvent, GameResult, Player, Team } from './game/types';
 import {
+  applyDraft,
   applyGame,
   loadLeague,
   newLeague,
   resetLeague,
   saveLeague,
   seasonContext,
+  setMyTeam,
   standings,
   type LeagueState,
 } from './game/league';
+import { generateDraftPool } from './game/players';
+import { createRng } from './game/rng';
 import { Scoreboard } from './ui/Scoreboard';
 import { Diamond } from './ui/Diamond';
 import { TeamCard } from './ui/TeamCard';
 import { PlayLog } from './ui/PlayLog';
 import { Standings } from './ui/Standings';
+import { TeamSelect } from './ui/TeamSelect';
+import { Draft } from './ui/Draft';
 
 type Phase = 'preview' | 'playing' | 'finished';
+type Screen = 'select' | 'draft' | 'game';
+const DRAFT_PICKS = 3;
 
 // pitch: 1球の間 / char: 1文字あたりのタイプ速度(ms) / pause: 結果行のあとの溜め
 const SPEEDS = [
@@ -28,14 +36,34 @@ const SPEEDS = [
 ];
 const DEFAULT_SPEED = 1; // 「ゆっくり」を初期選択に
 
-/** リーグから対戦カードを1つ選ぶ */
+/** リーグから対戦カードを1つ選ぶ。自球団があれば必ずその試合にする */
 function pickMatchup(league: LeagueState): { away: Team; home: Team; seed: number } {
   const seed = (Math.random() * 2 ** 31) >>> 0;
-  const n = league.teams.length;
-  const ai = Math.floor(Math.random() * n);
-  let hi = Math.floor(Math.random() * (n - 1));
-  if (hi >= ai) hi += 1;
-  return { away: league.teams[ai], home: league.teams[hi], seed };
+  const teams = league.teams;
+  const n = teams.length;
+  const myIdx = league.myTeam ? teams.findIndex((t) => t.shortName === league.myTeam) : -1;
+  let ai: number;
+  let hi: number;
+  if (myIdx >= 0) {
+    let opp = Math.floor(Math.random() * (n - 1));
+    if (opp >= myIdx) opp += 1;
+    if (Math.random() < 0.5) {
+      ai = myIdx;
+      hi = opp;
+    } else {
+      ai = opp;
+      hi = myIdx;
+    }
+  } else {
+    ai = Math.floor(Math.random() * n);
+    hi = Math.floor(Math.random() * (n - 1));
+    if (hi >= ai) hi += 1;
+  }
+  return { away: teams[ai], home: teams[hi], seed };
+}
+
+function freshPool(): Player[] {
+  return generateDraftPool(createRng((Math.random() * 2 ** 31) >>> 0), 9);
 }
 
 export function App() {
@@ -46,6 +74,8 @@ export function App() {
     saveLeague(fresh);
     return fresh;
   });
+  const [screen, setScreen] = useState<Screen>(() => (league.myTeam ? 'game' : 'select'));
+  const [draftPool, setDraftPool] = useState<Player[]>([]);
   const [matchup, setMatchup] = useState(() => pickMatchup(league));
   const [result, setResult] = useState<GameResult | null>(null);
   const [cursor, setCursor] = useState(0); // 再生中のイベント index
@@ -53,6 +83,40 @@ export function App() {
   const [phase, setPhase] = useState<Phase>('preview');
   const [speedIdx, setSpeedIdx] = useState(DEFAULT_SPEED);
   const logRef = useRef<HTMLDivElement>(null);
+
+  // ── マイチーム選択・ドラフト ──
+  const onPickTeam = useCallback(
+    (shortName: string) => {
+      setMyTeam(league, shortName);
+      saveLeague(league);
+      setLeague({ ...league });
+      setMatchup(pickMatchup(league));
+      setDraftPool(freshPool());
+      setScreen('draft');
+    },
+    [league],
+  );
+
+  const openDraft = useCallback(() => {
+    setDraftPool(freshPool());
+    setScreen('draft');
+  }, []);
+
+  const onDraftConfirm = useCallback(
+    (picks: Player[]) => {
+      applyDraft(league, picks);
+      saveLeague(league);
+      setLeague({ ...league });
+      setMatchup(pickMatchup(league));
+      setScreen('game');
+    },
+    [league],
+  );
+
+  const onDraftSkip = useCallback(() => {
+    setMatchup(pickMatchup(league));
+    setScreen('game');
+  }, [league]);
 
   // ── 再生エンジン ──
   // pitch イベントはライブパネルだけを更新して速く流し、
@@ -132,6 +196,7 @@ export function App() {
     setCursor(0);
     setChars(0);
     setPhase('preview');
+    setScreen('select');
   }, []);
 
   // ── 表示用データ ──
@@ -158,37 +223,50 @@ export function App() {
   const score: [number, number] = current ? current.score : [0, 0];
   const sp = SPEEDS[speedIdx];
 
+  const myTeam = league.teams.find((t) => t.shortName === league.myTeam);
+
   return (
     <div className="app">
       <header className="app__header">
         <h1>⚾ テキスト野球シミュ</h1>
-        <span className="app__tag">シーズン第{league.games + (phase === 'preview' ? 1 : 0)}戦</span>
+        {screen === 'game' && myTeam && <span className="app__tag">{myTeam.name}・第{league.games + (phase === 'preview' ? 1 : 0)}戦</span>}
       </header>
 
-      <Scoreboard away={matchup.away} home={matchup.home} events={played} score={score} />
+      {screen === 'select' && <TeamSelect teams={league.teams} onPick={onPickTeam} />}
 
-      {phase === 'preview' && (
-        <section className="preview">
-          <div className="preview__cards">
-            <TeamCard team={matchup.away} side="ビジター" seasonBat={league.bat} record={league.records[matchup.away.shortName]} />
-            <span className="preview__vs">VS</span>
-            <TeamCard team={matchup.home} side="ホーム" seasonBat={league.bat} record={league.records[matchup.home.shortName]} />
-          </div>
-          <div className="controls">
-            <button className="btn btn--primary" onClick={startGame}>
-              ▶ プレイボール
-            </button>
-            <button className="btn" onClick={newCard}>
-              🎲 別のカード
-            </button>
-            <button className="btn btn--ghost" onClick={onResetLeague}>
-              ♻️ リーグ再生成
-            </button>
-          </div>
-
-          <Standings rows={standings(league)} highlight={[matchup.away.shortName, matchup.home.shortName]} />
-        </section>
+      {screen === 'draft' && myTeam && (
+        <Draft team={myTeam} pool={draftPool} maxPicks={DRAFT_PICKS} onConfirm={onDraftConfirm} onSkip={onDraftSkip} />
       )}
+
+      {screen === 'game' && (
+        <>
+          <Scoreboard away={matchup.away} home={matchup.home} events={played} score={score} />
+
+          {phase === 'preview' && (
+            <section className="preview">
+              <div className="preview__cards">
+                <TeamCard team={matchup.away} side="ビジター" seasonBat={league.bat} record={league.records[matchup.away.shortName]} myTeam={league.myTeam} />
+                <span className="preview__vs">VS</span>
+                <TeamCard team={matchup.home} side="ホーム" seasonBat={league.bat} record={league.records[matchup.home.shortName]} myTeam={league.myTeam} />
+              </div>
+              <div className="controls">
+                <button className="btn btn--primary" onClick={startGame}>
+                  ▶ プレイボール
+                </button>
+                <button className="btn" onClick={newCard}>
+                  🎲 別のカード
+                </button>
+                <button className="btn" onClick={openDraft}>
+                  ✍️ 補強
+                </button>
+                <button className="btn btn--ghost" onClick={onResetLeague}>
+                  ♻️ リーグ再生成
+                </button>
+              </div>
+
+              <Standings rows={standings(league)} highlight={league.myTeam ? [league.myTeam] : []} />
+            </section>
+          )}
 
       {phase !== 'preview' && (
         <section className="live">
@@ -245,6 +323,8 @@ export function App() {
 
           <PlayLog events={played} current={current} chars={chars} typing={sp.char > 0} scrollRef={logRef} />
         </section>
+          )}
+        </>
       )}
 
       <footer className="app__footer">
