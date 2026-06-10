@@ -1,11 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { simulateGame } from './game/simulation';
 import type { GameEvent, GameResult, Team } from './game/types';
-import { applyGame, loadLeague, newLeague, resetLeague, saveLeague, seasonContext, type LeagueState } from './game/league';
+import {
+  applyGame,
+  loadLeague,
+  newLeague,
+  resetLeague,
+  saveLeague,
+  seasonContext,
+  standings,
+  type LeagueState,
+} from './game/league';
 import { Scoreboard } from './ui/Scoreboard';
 import { Diamond } from './ui/Diamond';
 import { TeamCard } from './ui/TeamCard';
 import { PlayLog } from './ui/PlayLog';
+import { Standings } from './ui/Standings';
 
 type Phase = 'preview' | 'playing' | 'finished';
 
@@ -160,9 +170,9 @@ export function App() {
       {phase === 'preview' && (
         <section className="preview">
           <div className="preview__cards">
-            <TeamCard team={matchup.away} side="ビジター" seasonBat={league.bat} />
+            <TeamCard team={matchup.away} side="ビジター" seasonBat={league.bat} record={league.records[matchup.away.shortName]} />
             <span className="preview__vs">VS</span>
-            <TeamCard team={matchup.home} side="ホーム" seasonBat={league.bat} />
+            <TeamCard team={matchup.home} side="ホーム" seasonBat={league.bat} record={league.records[matchup.home.shortName]} />
           </div>
           <div className="controls">
             <button className="btn btn--primary" onClick={startGame}>
@@ -175,6 +185,8 @@ export function App() {
               ♻️ リーグ再生成
             </button>
           </div>
+
+          <Standings rows={standings(league)} highlight={[matchup.away.shortName, matchup.home.shortName]} />
         </section>
       )}
 

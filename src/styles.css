@@ -632,6 +632,71 @@ body {
   }
 }
 
+.teamcard__record {
+  font-size: 13px;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+/* ---- 順位表 ---- */
+.standings {
+  margin-top: 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+.standings__title {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.standings__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.standings__table th {
+  color: var(--muted);
+  font-weight: 600;
+  text-align: center;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--line);
+}
+.standings__table td {
+  text-align: center;
+  padding: 6px 6px;
+  border-bottom: 1px solid #21262d;
+}
+.standings__rank {
+  color: var(--muted);
+  width: 22px;
+}
+.standings__team {
+  text-align: left !important;
+}
+.standings__short {
+  font-weight: 800;
+  margin-right: 6px;
+}
+.standings__name {
+  color: var(--muted);
+  font-size: 12px;
+}
+/* 狭い画面では略称のみ（はみ出し防止） */
+@media (max-width: 540px) {
+  .standings__name {
+    display: none;
+  }
+}
+.standings__pct {
+  color: var(--gold);
+  font-weight: 700;
+}
+.standings__row--hl td {
+  background: rgba(47, 129, 247, 0.12);
+}
+
 .app__footer {
   margin-top: 22px;
   text-align: center;

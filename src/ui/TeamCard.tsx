@@ -1,21 +1,29 @@
 import type { Player, Team } from '../game/types';
-import type { BatTotals } from '../game/league';
+import type { BatTotals, TeamRecord } from '../game/league';
 
 interface Props {
   team: Team;
   side: string;
   /** シーズン打撃成績（選手ID別）。あれば率・本を表示 */
   seasonBat?: Record<string, BatTotals>;
+  /** チームの勝敗（あれば見出しに表示） */
+  record?: TeamRecord;
 }
 
 /** チームの打順・先発投手を能力値つきで一覧表示（試合前プレビュー用） */
-export function TeamCard({ team, side, seasonBat }: Props) {
+export function TeamCard({ team, side, seasonBat, record }: Props) {
   const hasSeason = Boolean(seasonBat && Object.keys(seasonBat).length > 0);
+  const hasRecord = record && record.w + record.l + record.t > 0;
   return (
     <div className="teamcard">
       <div className="teamcard__head">
         <span className="teamcard__side">{side}</span>
         <h2 className="teamcard__name">{team.name}</h2>
+        {hasRecord && (
+          <span className="teamcard__record">
+            {record!.w}勝{record!.l}敗{record!.t > 0 ? `${record!.t}分` : ''}
+          </span>
+        )}
       </div>
 
       <table className="roster">

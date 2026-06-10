@@ -32,11 +32,20 @@ export interface PitTotals {
   k: number;
 }
 
+/** チームの勝敗記録 */
+export interface TeamRecord {
+  w: number;
+  l: number;
+  t: number;
+}
+
 export interface LeagueState {
   version: number;
   teams: Team[];
   bat: Record<string, BatTotals>;
   pit: Record<string, PitTotals>;
+  /** チーム勝敗（チーム略称をキーに） */
+  records: Record<string, TeamRecord>;
   /** 消化済み試合数 */
   games: number;
 }
@@ -49,6 +58,7 @@ export function newLeague(): LeagueState {
     teams: generateLeague(rng, 6),
     bat: {},
     pit: {},
+    records: {},
     games: 0,
   };
 }
@@ -59,6 +69,10 @@ export function loadLeague(): LeagueState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as LeagueState;
     if (parsed.version !== 1 || !Array.isArray(parsed.teams) || parsed.teams.length < 2) return null;
+    // 旧バージョンのセーブには無いフィールドを補完
+    parsed.records ??= {};
+    parsed.bat ??= {};
+    parsed.pit ??= {};
     return parsed;
   } catch {
     return null;
@@ -101,7 +115,52 @@ export function applyGame(league: LeagueState, result: GameResult): void {
     t.runs += gp.runs;
     t.k += gp.k;
   }
+
+  // チーム勝敗を記録
+  const aKey = result.away.team.shortName;
+  const hKey = result.home.team.shortName;
+  const ar = (league.records[aKey] ??= { w: 0, l: 0, t: 0 });
+  const hr = (league.records[hKey] ??= { w: 0, l: 0, t: 0 });
+  if (result.away.runs > result.home.runs) {
+    ar.w += 1;
+    hr.l += 1;
+  } else if (result.away.runs < result.home.runs) {
+    ar.l += 1;
+    hr.w += 1;
+  } else {
+    ar.t += 1;
+    hr.t += 1;
+  }
+
   league.games += 1;
+}
+
+/** 順位表の1行 */
+export interface StandingRow {
+  rank: number;
+  team: Team;
+  w: number;
+  l: number;
+  t: number;
+  pct: number;
+  /** ゲーム差（首位は0） */
+  gb: number;
+}
+
+/** 勝率順の順位表を構築する（勝率＝勝/(勝+負)、ゲーム差つき） */
+export function standings(league: LeagueState): StandingRow[] {
+  const rows = league.teams.map((team) => {
+    const r = league.records[team.shortName] ?? { w: 0, l: 0, t: 0 };
+    const decided = r.w + r.l;
+    return { team, w: r.w, l: r.l, t: r.t, pct: decided > 0 ? r.w / decided : 0, gb: 0, rank: 0 };
+  });
+  rows.sort((a, b) => b.pct - a.pct || b.w - a.w || a.l - b.l);
+  const lead = rows[0];
+  rows.forEach((row, i) => {
+    row.rank = i + 1;
+    row.gb = lead ? ((lead.w - row.w) + (row.l - lead.l)) / 2 : 0;
+  });
+  return rows;
 }
 
 /** 実況用のシーズンサマリを構築する */
