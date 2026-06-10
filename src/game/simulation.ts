@@ -429,6 +429,8 @@ function playHalfInning(
       battingScore: scoreRef[scoreIndex],
       oppScore: scoreRef[defIndex],
     });
+    // 前書き（チャンス／ピンチの煽り）は結果と混ぜず、独立した一行として出す
+    if (prefix) push(prefix, 'mound', { batter: batterLabel, paId });
 
     // ── 1球ずつの勝負 ──
     let balls = 0;
@@ -506,7 +508,7 @@ function playHalfInning(
           const li = off.lineup.findIndex((pl) => pl.id === batter.id);
           if (li >= 0) off.lineup[li] = sub;
           for (let b = 0; b < 3; b++) if (state.bases[b]?.id === batter.id) state.bases[b] = sub;
-          push(text, kind, { batter: batterLabel, paId });
+          push(text.slice(batterLabel.length + 1), kind, { batter: batterLabel, paId });
           text = `⚠️ ${batter.name}、患部を押さえてベンチへ下がる……${sub.name}が代わって塁に就いた`;
           kind = 'injury';
         }
@@ -644,8 +646,9 @@ function playHalfInning(
       }
     }
 
-    if (prefix && kind !== 'injury') text = prefix + text;
-    push(text, kind, { batter: batterLabel, paId });
+    // 状況見出しに打者名があるので、結果行の先頭の打者名は省く
+    const resultText = text.startsWith(`${batterLabel}、`) ? text.slice(batterLabel.length + 1) : text;
+    push(resultText, kind, { batter: batterLabel, paId });
 
     if (walkoff) return { runs: state.runs, hits, walkoff: true };
 
