@@ -1828,3 +1828,78 @@ body {
 .dot--w { color: var(--red); font-weight: 800; }
 .dot--l { color: #79c0ff; }
 .dot--t { color: var(--muted); }
+
+/* ════ ゲームスキン: フォント・背景・発光感 ════ */
+:root {
+  --disp: 'M PLUS Rounded 1c', system-ui, sans-serif;
+  --num: 'Oswald', system-ui, sans-serif;
+}
+body {
+  background:
+    radial-gradient(900px 320px at 15% -60px, rgba(47, 129, 247, 0.22), transparent 70%),
+    radial-gradient(900px 320px at 85% -60px, rgba(137, 87, 229, 0.16), transparent 70%),
+    radial-gradient(1400px 700px at 50% 110%, rgba(46, 160, 67, 0.10), transparent 60%),
+    linear-gradient(#0a0e14, #0d1117 40%);
+  background-attachment: fixed;
+}
+h1, h2, h3, .btn, .playcta, .tab, .nav__item, .banner__name, .match__team,
+.select__title, .builder__title, .draft__title, .roster-ed__title, .stats__title {
+  font-family: var(--disp);
+}
+.linescore, .live__score strong, .result__runs, .editor__val, .match__rec,
+.standings__table, .stats__table, .pa__score, .live__count {
+  font-family: var(--num);
+  letter-spacing: 0.5px;
+}
+.live__score strong { font-size: 34px; }
+.result__verdict {
+  font-family: var(--num);
+  font-style: italic;
+  transform: skewX(-6deg);
+  letter-spacing: 10px;
+}
+/* ガラス＋発光のカード */
+.match, .banner, .live__status, .scoreboard, .standings, .log {
+  background: linear-gradient(165deg, rgba(34, 46, 66, 0.85), rgba(16, 21, 30, 0.92));
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(120, 160, 220, 0.18);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.match__emblem, .banner__emblem {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08), 0 4px 14px rgba(0, 0, 0, 0.55);
+}
+/* CTAにシャイン */
+.playcta {
+  position: relative;
+  overflow: hidden;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.playcta::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -80%;
+  width: 50%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  animation: shine 3.2s ease-in-out infinite;
+}
+@keyframes shine { 0%, 60% { left: -80%; } 100% { left: 130%; } }
+/* ナビを浮遊ピルに */
+.nav {
+  left: 10px; right: 10px; bottom: 10px;
+  border: 1px solid rgba(120, 160, 220, 0.2);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+}
+.nav__item--on {
+  background: linear-gradient(135deg, rgba(47, 129, 247, 0.35), rgba(47, 129, 247, 0.12));
+  box-shadow: inset 0 0 0 1px rgba(47, 129, 247, 0.45);
+  color: #fff;
+}
+.app--nav { padding-bottom: 96px; }
+/* テーブルのゼブラと見出し */
+.standings__table tbody tr:nth-child(odd) td,
+.stats__table tbody tr:nth-child(odd) td { background: rgba(255, 255, 255, 0.025); }
+.stats__sub, .roster-ed__sub, .builder__gtitle {
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
+}
