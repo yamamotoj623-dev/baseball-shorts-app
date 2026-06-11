@@ -1903,3 +1903,110 @@ h1, h2, h3, .btn, .playcta, .tab, .nav__item, .banner__name, .match__team,
   border-left: 3px solid var(--accent);
   padding-left: 8px;
 }
+
+/* ════ プロスピ風レイアウト ════ */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -16px -14px 12px;
+  padding: 10px 14px;
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 8px, transparent 8px 16px),
+    linear-gradient(180deg, #1b2330, #10151d);
+  border-bottom: 2px solid #2f81f7;
+}
+.topbar__logo {
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: 15px;
+  background: linear-gradient(90deg, #79c0ff, #56d364);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-right: auto;
+}
+.topbar__res {
+  font-family: var(--num);
+  font-size: 13px;
+  font-weight: 700;
+  background: rgba(0,0,0,0.45);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+/* 順位カード（巨大N位） */
+.rankcard {
+  background: linear-gradient(160deg, rgba(34,46,66,0.9), rgba(16,21,30,0.95));
+  border: 1px solid rgba(120,160,220,0.18);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+}
+.rankcard__label {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  font-weight: 800;
+}
+.rankcard__main {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.rankcard__rank {
+  font-family: var(--num);
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(47,129,247,0.55);
+}
+.rankcard__rank small { font-size: 20px; margin-left: 2px; color: var(--muted); }
+.rankcard__rec { font-family: var(--num); font-size: 18px; color: var(--gold); }
+.rankcard__round { font-size: 12px; color: var(--muted); }
+/* 対戦カード v2 */
+.match__round { float: right; font-family: var(--num); color: var(--gold); }
+.match__tai {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2b3648, #161d28);
+  border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--disp); font-weight: 900; font-size: 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+.match__side2 { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.match__emblem2 {
+  width: 84px; height: 84px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--num); font-weight: 700; font-size: 22px; color: #fff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  border: 3px solid rgba(255,255,255,0.18);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.55), inset 0 -8px 16px rgba(0,0,0,0.35);
+}
+.match__emblem2--mine { border-color: var(--gold); box-shadow: 0 0 16px rgba(227,179,65,0.45), 0 6px 18px rgba(0,0,0,0.55); }
+.match__vslabel { font-size: 10px; color: var(--muted); letter-spacing: 1px; align-self: center; }
+.match__sp em { font-style: normal; font-family: var(--num); color: var(--gold); margin: 0 4px; }
+/* 順位表 v2 */
+.rankb {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 6px;
+  background: #232c3a; font-family: var(--num); font-weight: 700;
+}
+.rankb--1 { background: linear-gradient(135deg, #e3b341, #a87b1d); color: #1a1a1a; }
+.minimark { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; }
+.standings__table thead th { background: linear-gradient(180deg, #1d2a3f, #15202f); color: #b9c8dd; }
+.standings__row--hl td {
+  background: rgba(227,179,65,0.08) !important;
+  border-top: 1px solid rgba(227,179,65,0.5);
+  border-bottom: 1px solid rgba(227,179,65,0.5) !important;
+}
+/* プレイCTA立体化 */
+.playcta {
+  border: 2px solid rgba(255,255,255,0.35);
+  box-shadow: 0 6px 0 #0d47a1, 0 10px 24px rgba(47,129,247,0.45);
+}
+.playcta:active { transform: translateY(4px); box-shadow: 0 2px 0 #0d47a1; }

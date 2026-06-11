@@ -1,4 +1,5 @@
 import type { StandingRow } from '../game/league';
+import { teamColor } from '../game/players';
 
 interface Props {
   rows: StandingRow[];
@@ -28,8 +29,11 @@ export function Standings({ rows, highlight = [] }: Props) {
         <tbody>
           {rows.map((r) => (
             <tr key={r.team.shortName} className={highlight.includes(r.team.shortName) ? 'standings__row--hl' : ''}>
-              <td className="standings__rank">{r.rank}</td>
+              <td className="standings__rank">
+                <span className={`rankb ${r.rank === 1 ? 'rankb--1' : ''}`}>{r.rank}</span>
+              </td>
               <td className="standings__team">
+                <span className="minimark" style={{ background: teamColor(r.team) }} />
                 <span className="standings__short">{r.team.shortName}</span>
                 <span className="standings__name">{r.team.name}</span>
               </td>

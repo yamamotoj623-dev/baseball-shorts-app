@@ -321,6 +321,10 @@ export function App() {
     return () => clearInterval(id);
   }, [league]);
 
+  const eraOf = (id: string) => {
+    const t = league.pit[id];
+    return t && t.outs > 0 ? ((t.runs * 9) / (t.outs / 3)).toFixed(2) : '-';
+  };
   const stamina = league.stamina ?? STAMINA_MAX;
   const staminaWait = nextStaminaIn(league);
   const tickets = league.tickets ?? 0;
@@ -343,6 +347,15 @@ export function App() {
       {screen === 'game' && myTeam && (
         <>
           {/* 球団バナー */}
+          {screen === 'game' && phase !== 'playing' && (
+            <div className="topbar">
+              <span className="topbar__logo">劇場ペナント</span>
+              <span className="topbar__res">🏦 {myTeam.funds != null ? (myTeam.funds / 10000).toFixed(1) : '-'}億</span>
+              <span className="topbar__res">⚡ {stamina}/{STAMINA_MAX}</span>
+              <span className="topbar__res">🎟 {tickets}</span>
+            </div>
+          )}
+
           {tab === 'home' && phase === 'preview' && (
             <div className="banner" style={{ borderColor: myColor }}>
               <span className="banner__emblem" style={{ background: myColor }}>
@@ -366,7 +379,25 @@ export function App() {
             <>
               {phase === 'preview' && (
                 <section className="home">
-                  <MatchCard away={matchup.away} home={matchup.home} records={league.records} myShort={league.myTeam} />
+                  {myRank != null && myRec && (
+                    <div className="rankcard">
+                      <div className="rankcard__label">セ・パ統一リーグ</div>
+                      <div className="rankcard__main">
+                        <span className="rankcard__rank">{myRank}<small>位</small></span>
+                        <span className="rankcard__rec">{myRec.w}勝{myRec.l}敗{myRec.t > 0 ? `${myRec.t}分` : ''}</span>
+                      </div>
+                      <div className="rankcard__round">第{(league.games % 30) + 1}戦 / 30（第{Math.floor(league.games / 30) + 1}年度）</div>
+                    </div>
+                  )}
+                  <MatchCard
+                    away={matchup.away}
+                    home={matchup.home}
+                    records={league.records}
+                    myShort={league.myTeam}
+                    awayEra={eraOf(matchup.away.pitcher.id)}
+                    homeEra={eraOf(matchup.home.pitcher.id)}
+                    round={{ n: (league.games % 30) + 1, total: 30 }}
+                  />
                   <button className="playcta" onClick={startGame} disabled={stamina < 1}>
                     {stamina >= 1 ? '▶ プレイボール' : `⚡ スタミナ回復まで 約${Math.ceil(staminaWait / 60000)}分`}
                     <span className="playcta__sub">{stamina >= 1 ? `⚡1消費（残り${stamina}）` : '時間経過で回復します'}</span>
