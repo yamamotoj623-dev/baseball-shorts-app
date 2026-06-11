@@ -15,17 +15,27 @@ const GIVEN_NAMES = [
   '怜', '隼人', '直樹', '亮', '匠', '優斗', '航', '誠', '剛', '純',
 ];
 
-/** 架空チーム名のプール（地名 + 愛称） */
-const TEAM_POOL: { name: string; short: string }[] = [
-  { name: 'ノーザン・ベアーズ', short: 'BEARS' },
-  { name: 'シーサイド・マリナーズ', short: 'MARI' },
-  { name: 'メトロ・ファルコンズ', short: 'FALC' },
-  { name: 'グリーンフィールド・タイタンズ', short: 'TITA' },
-  { name: 'サンダー・ドラゴンズ', short: 'DRGN' },
-  { name: 'クリムゾン・ウルブズ', short: 'WOLV' },
-  { name: 'リバーサイド・キングス', short: 'KING' },
-  { name: 'スターライト・コメッツ', short: 'COMT' },
+/** 架空チーム名のプール（地名 + 愛称 + 球団カラー） */
+const TEAM_POOL: { name: string; short: string; color: string }[] = [
+  { name: 'ノーザン・ベアーズ', short: 'BEARS', color: '#8a5a2b' },
+  { name: 'シーサイド・マリナーズ', short: 'MARI', color: '#1f6feb' },
+  { name: 'メトロ・ファルコンズ', short: 'FALC', color: '#6e7681' },
+  { name: 'グリーンフィールド・タイタンズ', short: 'TITA', color: '#2ea043' },
+  { name: 'サンダー・ドラゴンズ', short: 'DRGN', color: '#d29922' },
+  { name: 'クリムゾン・ウルブズ', short: 'WOLV', color: '#da3633' },
+  { name: 'リバーサイド・キングス', short: 'KING', color: '#8957e5' },
+  { name: 'スターライト・コメッツ', short: 'COMT', color: '#39c5cf' },
 ];
+
+/** 球団カラー（カスタム球団は略称から安定したハッシュで決まる） */
+export function teamColor(team: { shortName: string }): string {
+  const found = TEAM_POOL.find((t) => t.short === team.shortName);
+  if (found) return found.color;
+  let h = 0;
+  for (const c of team.shortName) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const palette = ['#e05273', '#1f6feb', '#2ea043', '#d29922', '#8957e5', '#39c5cf', '#da3633', '#ff7b72'];
+  return palette[h % palette.length];
+}
 
 const FIELD_POSITIONS: Position[] = ['捕', '一', '二', '三', '遊', '左', '中', '右', '指'];
 

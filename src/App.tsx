@@ -20,12 +20,13 @@ import {
   STAMINA_MAX,
   type LeagueState,
 } from './game/league';
-import { generateDraftPool, salaryFor, teamOverall } from './game/players';
+import { generateDraftPool, salaryFor, teamColor, teamOverall } from './game/players';
 import { createRng } from './game/rng';
 import { Scoreboard } from './ui/Scoreboard';
 import { Diamond } from './ui/Diamond';
-import { TeamCard } from './ui/TeamCard';
 import { PlayLog } from './ui/PlayLog';
+import { MatchCard } from './ui/MatchCard';
+import { ResultCard } from './ui/ResultCard';
 import { Standings } from './ui/Standings';
 import { TeamSelect } from './ui/TeamSelect';
 import { Draft } from './ui/Draft';
@@ -34,7 +35,8 @@ import { StatsPanel } from './ui/StatsPanel';
 import { RosterEditor } from './ui/RosterEditor';
 
 type Phase = 'preview' | 'playing' | 'finished';
-type Screen = 'select' | 'build' | 'draft' | 'game' | 'stats' | 'roster';
+type Screen = 'select' | 'build' | 'draft' | 'game';
+type Tab = 'home' | 'roster' | 'stats' | 'standings' | 'more';
 const DRAFT_PICKS = 3;
 
 // pitch: 1球の間 / char: 1文字あたりのタイプ速度(ms) / pause: 結果行のあとの溜め
@@ -94,6 +96,7 @@ export function App() {
     return fresh;
   });
   const [screen, setScreen] = useState<Screen>(() => (league.myTeam ? 'game' : 'select'));
+  const [tab, setTab] = useState<Tab>('home');
   const [draftPool, setDraftPool] = useState<Player[]>([]);
   const [matchup, setMatchup] = useState(() => pickMatchup(league));
   const [result, setResult] = useState<GameResult | null>(null);
@@ -119,6 +122,7 @@ export function App() {
   const openDraft = useCallback(() => {
     setDraftPool(freshPool());
     setScreen('draft');
+    setTab('home');
   }, []);
 
   const onDraftConfirm = useCallback(
@@ -320,156 +324,197 @@ export function App() {
   const stamina = league.stamina ?? STAMINA_MAX;
   const staminaWait = nextStaminaIn(league);
   const tickets = league.tickets ?? 0;
+  const inSetup = screen === 'select' || screen === 'build' || screen === 'draft';
+  const myColor = myTeam ? teamColor(myTeam) : '#2f81f7';
+  const myRec = myTeam ? league.records[myTeam.shortName] : undefined;
+  const myRank = myTeam ? standings(league).find((r) => r.team.shortName === myTeam.shortName)?.rank : undefined;
+  const [resultDismissed, setResultDismissed] = useState(false);
 
   return (
-    <div className="app">
-      <header className="app__header">
-        <h1>⚾ テキスト野球シミュ</h1>
-        {screen === 'game' && myTeam && <span className="app__tag">{myTeam.name}・第{league.games + (phase === 'preview' ? 1 : 0)}戦</span>}
-      </header>
-
+    <div className={`app ${!inSetup ? 'app--nav' : ''}`}>
+      {/* ── セットアップ（球団選択・作成・ドラフト）── */}
       {screen === 'select' && <TeamSelect teams={league.teams} onPick={onPickTeam} onCustom={() => setScreen('build')} />}
-
       {screen === 'build' && <TeamBuilder onComplete={onBuildComplete} onCancel={() => setScreen('select')} />}
-
-      {screen === 'stats' && myTeam && <StatsPanel league={league} team={myTeam} onClose={() => setScreen('game')} />}
-
-      {screen === 'roster' && myTeam && (
-        <RosterEditor
-          league={league}
-          team={myTeam}
-          onChange={() => {
-            saveLeague(league);
-            setLeague({ ...league });
-          }}
-          onClose={() => {
-            saveLeague(league);
-            setLeague({ ...league });
-            setMatchup(pickMatchup(league));
-            setScreen('game');
-          }}
-        />
-      )}
-
       {screen === 'draft' && myTeam && (
         <Draft team={myTeam} pool={draftPool} maxPicks={DRAFT_PICKS} competing={competingOf(draftPool)} onConfirm={onDraftConfirm} onSkip={onDraftSkip} />
       )}
 
-      {screen === 'game' && (
+      {/* ── メイン（タブナビ）── */}
+      {screen === 'game' && myTeam && (
         <>
-          <Scoreboard away={matchup.away} home={matchup.home} events={played} score={score} />
-
-          {phase === 'preview' && (
-            <section className="preview">
-              <div className="economy">
-                <span className="economy__item">
-                  ⚡ {stamina}/{STAMINA_MAX}
-                  {stamina < STAMINA_MAX && staminaWait > 0 && (
-                    <span className="economy__timer">（あと{Math.ceil(staminaWait / 60000)}分で+1）</span>
-                  )}
-                </span>
-                <span className="economy__item">🎟 チケット {tickets}枚</span>
-                {myTeam?.funds != null && <span className="economy__item">🏦 {(myTeam.funds / 10000).toFixed(1)}億円</span>}
-              </div>
-
-              {(league.news?.length ?? 0) > 0 && (
-                <div className="news">
-                  {league.news!.slice(0, 4).map((n, i) => (
-                    <div key={i} className="news__line">
-                      {n}
-                    </div>
-                  ))}
+          {/* 球団バナー */}
+          {tab === 'home' && phase === 'preview' && (
+            <div className="banner" style={{ borderColor: myColor }}>
+              <span className="banner__emblem" style={{ background: myColor }}>
+                {myTeam.shortName.slice(0, 2)}
+              </span>
+              <div className="banner__body">
+                <div className="banner__name">{myTeam.name}</div>
+                <div className="banner__sub">
+                  {myRank ? `${myRank}位` : ''} {myRec ? `・${myRec.w}勝${myRec.l}敗${myRec.t > 0 ? `${myRec.t}分` : ''}` : ''}・第
+                  {league.games + 1}戦
                 </div>
+              </div>
+              <div className="banner__chips">
+                <span className="chip-eco">⚡{stamina}</span>
+                <span className="chip-eco">🎟{tickets}</span>
+              </div>
+            </div>
+          )}
+
+          {tab === 'home' && (
+            <>
+              {phase === 'preview' && (
+                <section className="home">
+                  <MatchCard away={matchup.away} home={matchup.home} records={league.records} myShort={league.myTeam} />
+                  <button className="playcta" onClick={startGame} disabled={stamina < 1}>
+                    {stamina >= 1 ? '▶ プレイボール' : `⚡ スタミナ回復まで 約${Math.ceil(staminaWait / 60000)}分`}
+                    <span className="playcta__sub">{stamina >= 1 ? `⚡1消費（残り${stamina}）` : '時間経過で回復します'}</span>
+                  </button>
+
+                  {(league.news?.length ?? 0) > 0 && (
+                    <div className="news">
+                      <div className="news__title">球団ニュース</div>
+                      {league.news!.slice(0, 4).map((n, i) => (
+                        <div key={i} className="news__line">
+                          {n}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
               )}
 
-              <div className="preview__cards">
-                <TeamCard team={matchup.away} side="ビジター" seasonBat={league.bat} record={league.records[matchup.away.shortName]} myTeam={league.myTeam} />
-                <span className="preview__vs">VS</span>
-                <TeamCard team={matchup.home} side="ホーム" seasonBat={league.bat} record={league.records[matchup.home.shortName]} myTeam={league.myTeam} />
-              </div>
-              <div className="controls">
-                <button className="btn btn--primary" onClick={startGame} disabled={stamina < 1}>
-                  {stamina >= 1 ? '▶ プレイボール（⚡1）' : '⚡ スタミナ不足'}
-                </button>
-                <button className="btn" onClick={newCard}>
-                  🎲 別のカード
-                </button>
-                <button className="btn" onClick={openDraft}>
-                  ✍️ 補強
-                </button>
-                <button className="btn" onClick={() => setScreen('roster')}>
-                  ⚙️ 編成
-                </button>
-                <button className="btn" onClick={() => setScreen('stats')}>
-                  📊 成績
-                </button>
-                <button className="btn" onClick={() => setReallocPick(true)} disabled={tickets < 1}>
-                  🎟 再配分
-                </button>
-                <button className="btn btn--ghost" onClick={onResetLeague}>
-                  ♻️ リーグ再生成
-                </button>
-              </div>
+              {phase !== 'preview' && (
+                <section className="live">
+                  <Scoreboard away={matchup.away} home={matchup.home} events={played} score={score} />
+                  <div className="live__status">
+                    <Diamond bases={current?.bases ?? [false, false, false]} outs={current?.outs ?? 0} count={live.count} />
+                    <div className="live__matchup">
+                      <div className="live__inning">{current ? `${current.inning}回${current.half === 'top' ? '表' : '裏'}` : ''}</div>
+                      <div className="live__score">
+                        <span>{matchup.away.shortName}</span>
+                        <strong>
+                          {score[0]} - {score[1]}
+                        </strong>
+                        <span>{matchup.home.shortName}</span>
+                      </div>
+                      {live.batter && (
+                        <div className="live__vs">
+                          <span className="live__role">打</span> {live.batter}
+                          <span className="live__role live__role--p">投</span> {live.pitcher}
+                          {live.count && (
+                            <span className="live__count">
+                              {live.count[0]}-{live.count[1]}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {current?.kind === 'pitch' && <div className="live__pitch">{current.text}</div>}
+                    </div>
+                  </div>
 
+                  <div className="live__controls">
+                    <div className="speed">
+                      {SPEEDS.map((s, i) => (
+                        <button key={s.label} className={`chip ${i === speedIdx ? 'chip--on' : ''}`} onClick={() => setSpeedIdx(i)}>
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                    {phase === 'playing' && (
+                      <button className="btn" onClick={skipToEnd}>
+                        ⏭ 最後まで
+                      </button>
+                    )}
+                  </div>
+
+                  <PlayLog events={played} current={current} chars={chars} typing={sp.char > 0} scrollRef={logRef} />
+
+                  {phase === 'finished' && !resultDismissed && result && (
+                    <ResultCard
+                      result={result}
+                      myShort={league.myTeam}
+                      onNext={() => {
+                        setResultDismissed(false);
+                        newCard();
+                      }}
+                      onReplayLog={() => setResultDismissed(true)}
+                    />
+                  )}
+                  {phase === 'finished' && resultDismissed && (
+                    <button className="playcta" onClick={() => { setResultDismissed(false); newCard(); }}>
+                      次の試合へ
+                    </button>
+                  )}
+                </section>
+              )}
+            </>
+          )}
+
+          {tab === 'roster' && (
+            <RosterEditor
+              league={league}
+              team={myTeam}
+              onChange={() => {
+                saveLeague(league);
+                setLeague({ ...league });
+              }}
+              onClose={() => {
+                saveLeague(league);
+                setLeague({ ...league });
+                setMatchup(pickMatchup(league));
+                setTab('home');
+              }}
+            />
+          )}
+
+          {tab === 'stats' && <StatsPanel league={league} team={myTeam} onClose={() => setTab('home')} />}
+
+          {tab === 'standings' && (
+            <section className="home">
               <Standings rows={standings(league)} highlight={league.myTeam ? [league.myTeam] : []} />
             </section>
           )}
 
-      {phase !== 'preview' && (
-        <section className="live">
-          <div className="live__status">
-            <Diamond
-              bases={current?.bases ?? [false, false, false]}
-              outs={current?.outs ?? 0}
-              count={live.count}
-            />
-            <div className="live__matchup">
-              <div className="live__inning">
-                {current ? `${current.inning}回${current.half === 'top' ? '表' : '裏'}` : ''}
+          {tab === 'more' && (
+            <section className="more">
+              <button className="more__item" onClick={openDraft}>
+                📋 ドラフト・補強会議<span className="more__desc">スカウトのリストから最大3人を指名</span>
+              </button>
+              <button className="more__item" onClick={() => setReallocPick(true)} disabled={tickets < 1}>
+                🎟 能力の再配分<span className="more__desc">チケット{tickets}枚所持。1枚で1選手を振り直し</span>
+              </button>
+              <div className="more__info">
+                ⚡ スタミナ {stamina}/{STAMINA_MAX}
+                {stamina < STAMINA_MAX && `（あと約${Math.ceil(staminaWait / 60000)}分で+1）`}
+                <br />🏦 球団資金 {myTeam.funds != null ? (myTeam.funds / 10000).toFixed(1) : '-'}億円 ・ 監督方針{' '}
+                {myTeam.manager?.style ?? '-'}
               </div>
-              <div className="live__score">
-                <span>{matchup.away.shortName}</span>
-                <strong>
-                  {score[0]} - {score[1]}
-                </strong>
-                <span>{matchup.home.shortName}</span>
-              </div>
-              {live.batter && (
-                <div className="live__vs">
-                  <span className="live__role">打</span> {live.batter}
-                  <span className="live__role live__role--p">投</span> {live.pitcher}
-                  {live.count && (
-                    <span className="live__count">
-                      {live.count[0]}-{live.count[1]}
-                    </span>
-                  )}
-                </div>
-              )}
-              {current?.kind === 'pitch' && <div className="live__pitch">{current.text}</div>}
-            </div>
-          </div>
+              <button className="more__item more__item--danger" onClick={onResetLeague}>
+                ♻️ リーグを作り直す<span className="more__desc">全データをリセットして最初から</span>
+              </button>
+            </section>
+          )}
 
-          <div className="live__controls">
-            <div className="speed">
-              {SPEEDS.map((s, i) => (
-                <button key={s.label} className={`chip ${i === speedIdx ? 'chip--on' : ''}`} onClick={() => setSpeedIdx(i)}>
-                  {s.label}
+          {/* 下部ナビ（試合再生中は隠す） */}
+          {phase !== 'playing' && (
+            <nav className="nav">
+              {(
+                [
+                  ['home', '⚾', '試合'],
+                  ['roster', '⚙️', '編成'],
+                  ['stats', '📊', '成績'],
+                  ['standings', '🏆', '順位'],
+                  ['more', '☰', 'その他'],
+                ] as const
+              ).map(([key, icon, label]) => (
+                <button key={key} className={`nav__item ${tab === key ? 'nav__item--on' : ''}`} onClick={() => setTab(key)}>
+                  <span className="nav__icon">{icon}</span>
+                  {label}
                 </button>
               ))}
-            </div>
-            {phase === 'playing' ? (
-              <button className="btn" onClick={skipToEnd}>
-                ⏭ 最後まで
-              </button>
-            ) : (
-              <button className="btn btn--primary" onClick={newCard}>
-                🎲 次の試合へ
-              </button>
-            )}
-          </div>
-
-          <PlayLog events={played} current={current} chars={chars} typing={sp.char > 0} scrollRef={logRef} />
-        </section>
+            </nav>
           )}
         </>
       )}
@@ -499,10 +544,6 @@ export function App() {
       )}
 
       {reallocTarget && <PlayerEditor player={reallocTarget} onChange={() => setLeague({ ...league })} onClose={endRealloc} />}
-
-      <footer className="app__footer">
-        選手・チームはすべて自動生成のオリジナル（実在の人物・球団とは無関係）
-      </footer>
     </div>
   );
 }
