@@ -22,6 +22,7 @@ export function Standings({ rows, highlight = [] }: Props) {
             <th>分</th>
             <th>勝率</th>
             <th>差</th>
+            <th>直近5</th>
           </tr>
         </thead>
         <tbody>
@@ -37,6 +38,13 @@ export function Standings({ rows, highlight = [] }: Props) {
               <td>{r.t}</td>
               <td className="standings__pct">{played ? fmtPct(r.pct) : '-'}</td>
               <td>{r.rank === 1 ? '-' : fmtGb(r.gb)}</td>
+              <td className="standings__last5">
+                {(r.last5 ?? []).map((x, i) => (
+                  <span key={i} className={`dot dot--${x.toLowerCase()}`}>
+                    {x === 'W' ? '○' : x === 'L' ? '●' : '△'}
+                  </span>
+                ))}
+              </td>
             </tr>
           ))}
         </tbody>

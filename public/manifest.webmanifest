@@ -1,0 +1,10 @@
+{
+  "name": "劇場ペナント — テキスト野球シミュレーション",
+  "short_name": "劇場ペナント",
+  "description": "一球速報×球団経営。自分だけの球団を作り、育て、ペナント制覇を目指す",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

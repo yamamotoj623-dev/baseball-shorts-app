@@ -44,6 +44,8 @@ export interface TeamRecord {
   w: number;
   l: number;
   t: number;
+  /** 直近5試合の結果（W/L/T、新しいものが末尾） */
+  last5?: string[];
 }
 
 export interface LeagueState {
@@ -206,16 +208,26 @@ export function applyGame(league: LeagueState, result: GameResult): void {
   const hKey = result.home.team.shortName;
   const ar = (league.records[aKey] ??= { w: 0, l: 0, t: 0 });
   const hr = (league.records[hKey] ??= { w: 0, l: 0, t: 0 });
+  let aRes = 'T';
+  let hRes = 'T';
   if (result.away.runs > result.home.runs) {
     ar.w += 1;
     hr.l += 1;
+    aRes = 'W';
+    hRes = 'L';
   } else if (result.away.runs < result.home.runs) {
     ar.l += 1;
     hr.w += 1;
+    aRes = 'L';
+    hRes = 'W';
   } else {
     ar.t += 1;
     hr.t += 1;
   }
+  (ar.last5 ??= []).push(aRes);
+  (hr.last5 ??= []).push(hRes);
+  if (ar.last5.length > 5) ar.last5.splice(0, ar.last5.length - 5);
+  if (hr.last5.length > 5) hr.last5.splice(0, hr.last5.length - 5);
 
   league.games += 1;
 }
@@ -250,6 +262,7 @@ export interface StandingRow {
   pct: number;
   /** ゲーム差（首位は0） */
   gb: number;
+  last5?: string[];
 }
 
 /** 勝率順の順位表を構築する（勝率＝勝/(勝+負)、ゲーム差つき） */
@@ -257,7 +270,7 @@ export function standings(league: LeagueState): StandingRow[] {
   const rows = league.teams.map((team) => {
     const r = league.records[team.shortName] ?? { w: 0, l: 0, t: 0 };
     const decided = r.w + r.l;
-    return { team, w: r.w, l: r.l, t: r.t, pct: decided > 0 ? r.w / decided : 0, gb: 0, rank: 0 };
+    return { team, w: r.w, l: r.l, t: r.t, pct: decided > 0 ? r.w / decided : 0, gb: 0, rank: 0, last5: r.last5 };
   });
   rows.sort((a, b) => b.pct - a.pct || b.w - a.w || a.l - b.l);
   const lead = rows[0];
@@ -373,6 +386,15 @@ export function progressTick(league: LeagueState, result: GameResult): string[] 
   // ── 年度替わり（SEASON_LENGTH 試合ごと）──
   if (league.games > 0 && league.games % SEASON_LENGTH === 0) {
     const year = Math.floor(league.games / SEASON_LENGTH);
+    const champ = standings(league)[0];
+    if (champ) {
+      const mine = champ.team.shortName === myShort;
+      news.unshift(
+        mine
+          ? `🏆🎉 リーグ優勝！！ ${champ.team.name}が第${year}年度を制した！（${champ.w}勝${champ.l}敗）`
+          : `🏆 第${year}年度リーグ優勝: ${champ.team.name}（${champ.w}勝${champ.l}敗）`,
+      );
+    }
     news.unshift(`🗓 第${year}年度が終了。全選手が1歳年を取り、年俸が更改された`);
     for (const team of league.teams) {
       const isMine = team.shortName === myShort;

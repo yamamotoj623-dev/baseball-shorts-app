@@ -386,7 +386,7 @@ export function App() {
               )}
 
               {phase !== 'preview' && (
-                <section className="live">
+                <section className={`live ${current?.kind === 'homerun' ? 'live--hr' : ''}`}>
                   <Scoreboard away={matchup.away} home={matchup.home} events={played} score={score} />
                   <div className="live__status">
                     <Diamond bases={current?.bases ?? [false, false, false]} outs={current?.outs ?? 0} count={live.count} />
@@ -394,7 +394,7 @@ export function App() {
                       <div className="live__inning">{current ? `${current.inning}回${current.half === 'top' ? '表' : '裏'}` : ''}</div>
                       <div className="live__score">
                         <span>{matchup.away.shortName}</span>
-                        <strong>
+                        <strong key={`${score[0]}-${score[1]}`} className="live__scorenum">
                           {score[0]} - {score[1]}
                         </strong>
                         <span>{matchup.home.shortName}</span>

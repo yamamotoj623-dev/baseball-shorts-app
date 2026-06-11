@@ -35,7 +35,7 @@ export function StatsPanel({ league, team, onClose }: Props) {
     .map((p) => ({ p, t: league.bat[p.id] }))
     .filter((r) => r.t && r.t.ab + r.t.bb > 0);
 
-  const arms = [team.pitcher, ...team.bullpen];
+  const arms = [...new Map([...(team.rotation ?? [team.pitcher]), ...team.bullpen].map((p) => [p.id, p])).values()];
   const pitRows = arms.map((p) => ({ p, t: league.pit[p.id] })).filter((r) => r.t && r.t.outs > 0);
 
   // リーグOPSランキング（規定: リーグ消化試合×2打数）

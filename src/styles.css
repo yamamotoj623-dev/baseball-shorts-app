@@ -1799,3 +1799,32 @@ body {
   font-size: 11px;
   color: var(--muted);
 }
+
+/* ---- 試合中の演出 ---- */
+.live--hr {
+  animation: hrShake 0.6s ease-out;
+}
+@keyframes hrShake {
+  0% { transform: translateX(0); filter: brightness(1.8); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-2px); }
+  100% { transform: translateX(0); filter: brightness(1); }
+}
+.live__scorenum {
+  display: inline-block;
+  animation: scorePop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+@keyframes scorePop {
+  0% { transform: scale(1.6); color: var(--gold); }
+  100% { transform: scale(1); }
+}
+
+/* ---- 順位表の直近5試合 ---- */
+.standings__last5 {
+  white-space: nowrap;
+  letter-spacing: 1px;
+}
+.dot--w { color: var(--red); font-weight: 800; }
+.dot--l { color: #79c0ff; }
+.dot--t { color: var(--muted); }
