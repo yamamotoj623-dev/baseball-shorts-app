@@ -14,8 +14,20 @@ import {
   salaryFor,
   generateManager,
   generateCoaches,
+  grade,
+  makeForeignName,
+  budgetFor as _bf,
 } from '../game/players';
 import { createRng } from '../game/rng';
+
+/** 総合グレード（全能力の平均→S〜G） */
+function overallGrade(p: Player): string {
+  const v = p.pitches
+    ? (p.pitches.velocity + p.pitches.control + p.pitches.stamina) / 3
+    : (p.bats.meet + p.bats.power + p.bats.speed + p.bats.defense) / 4;
+  return grade(Math.round(v));
+}
+void _bf;
 
 interface Props {
   onComplete: (team: Team) => void;
@@ -92,7 +104,16 @@ export function TeamBuilder({ onComplete, onCancel }: Props) {
       </div>
 
       <div className="builder__manager">
-        <span className="builder__mlabel">監督の方針</span>
+        <span className="builder__mlabel">監督</span>
+        <input
+          className="builder__input builder__input--short"
+          placeholder="監督名"
+          value={team.manager?.name ?? ''}
+          onChange={(e) => {
+            if (team.manager) team.manager.name = e.target.value;
+            refresh();
+          }}
+        />
         {MANAGER_STYLES.map((st) => (
           <button
             key={st}
@@ -104,6 +125,25 @@ export function TeamBuilder({ onComplete, onCancel }: Props) {
           >
             {st}
           </button>
+        ))}
+      </div>
+
+      <div className="builder__manager">
+        <span className="builder__mlabel">コーチ</span>
+        {(team.coaches ?? []).map((c, i) => (
+          <span key={i} className="builder__coach">
+            <span className="builder__ctype">{c.type}</span>
+            <input
+              className="builder__input builder__input--coach"
+              placeholder={`${c.type}コーチ名`}
+              value={c.name}
+              onChange={(e) => {
+                c.name = e.target.value;
+                refresh();
+              }}
+            />
+            <span className="builder__cskill">指導{c.skill}</span>
+          </span>
         ))}
       </div>
 
@@ -193,15 +233,34 @@ export function PlayerEditor({ player, onChange, onClose }: { player: Player; on
       <button className="editor__btn" onClick={() => { set(Math.max(1, get() - 5)); onChange(); }}>-5</button>
       <button className="editor__btn" onClick={() => { set(Math.max(1, get() - 1)); onChange(); }}>-</button>
       <span className="editor__val">{get()}</span>
+      <span className={`editor__grade editor__grade--${grade(get())}`}>{grade(get())}</span>
+      <div className="editor__bar">
+        <span className={`editor__barfill bar--${grade(get())}`} style={{ width: `${get()}%` }} />
+      </div>
       <button className="editor__btn" onClick={() => { if (remain >= 1) { set(Math.min(99, get() + 1)); onChange(); } }}>+</button>
       <button className="editor__btn" onClick={() => { const d = Math.min(5, remain, 99 - get()); if (d > 0) { set(get() + d); onChange(); } }}>+5</button>
     </div>
   );
 
+  const toggleAbility = (a: string) => {
+    const cur = player.abilities ?? [];
+    if (cur.includes(a)) player.abilities = cur.filter((x) => x !== a);
+    else if (cur.length < 2) player.abilities = [...cur, a]; // 最大2つ
+    onChange();
+  };
+
   return (
     <div className="editor" onClick={onClose}>
       <div className="editor__panel" onClick={(e) => e.stopPropagation()}>
         <div className="editor__head">
+          <span className={`editor__ovr editor__grade--${overallGrade(player)}`}>{overallGrade(player)}</span>
+          <input
+            className="editor__numin"
+            type="number"
+            placeholder="背番号"
+            value={player.uniform ?? ''}
+            onChange={(e) => { player.uniform = Number(e.target.value) || undefined; onChange(); }}
+          />
           <input
             className="builder__input"
             placeholder="選手名"
@@ -212,7 +271,7 @@ export function PlayerEditor({ player, onChange, onClose }: { player: Player; on
             }}
           />
           <button className="btn btn--ghost" onClick={() => { randomizePlayer(player, createRng((Math.random() * 2 ** 31) >>> 0)); onChange(); }}>
-            🎲 お任せ
+            🎲
           </button>
         </div>
 
@@ -232,7 +291,15 @@ export function PlayerEditor({ player, onChange, onClose }: { player: Player; on
             ))}
           </div>
           <div className="editor__row">
-            <button className={`chip ${player.foreign ? 'chip--on' : ''}`} onClick={() => { player.foreign = !player.foreign; onChange(); }}>
+            <button
+              className={`chip ${player.foreign ? 'chip--on' : ''}`}
+              onClick={() => {
+                player.foreign = !player.foreign;
+                // 外国人にしたら名前を外国人名へ（未入力時のみ自動補完）
+                if (player.foreign && !player.name.trim()) player.name = makeForeignName(createRng((Math.random() * 2 ** 31) >>> 0));
+                onChange();
+              }}
+            >
               🌐 外国人（+25pt / 年俸1.6倍）
             </button>
           </div>
@@ -256,10 +323,9 @@ export function PlayerEditor({ player, onChange, onClose }: { player: Player; on
         )}
 
         <div className="editor__abilities">
-          <span className="editor__slabel">特殊能力</span>
-          <button className={`chip ${(player.abilities?.length ?? 0) === 0 ? 'chip--on' : ''}`} onClick={() => { player.abilities = []; onChange(); }}>なし</button>
+          <span className="editor__slabel">特殊能力（最大2つ）</span>
           {abilities.map((a) => (
-            <button key={a} className={`chip ${player.abilities?.includes(a) ? 'chip--on' : ''}`} onClick={() => { player.abilities = [a]; onChange(); }}>{a}</button>
+            <button key={a} className={`chip ${player.abilities?.includes(a) ? 'chip--on' : ''}`} onClick={() => toggleAbility(a)}>{a}</button>
           ))}
         </div>
 

@@ -45,6 +45,16 @@ const FOREIGN_NAMES = [
   'アンダーソン', 'ロドリゲス', 'ペレス', 'ハミルトン', 'バーンズ', 'ケラー',
   'サンチェス', 'ウィリアムス', 'ガルシア', 'モレノ', 'デイビス', 'クルーズ',
 ];
+const FOREIGN_FIRST = [
+  'マイク', 'クリス', 'デビッド', 'カルロス', 'ホセ', 'フアン', 'アレックス',
+  'トニー', 'ブライアン', 'ライアン', 'マーカス', 'レジー', 'エリック', 'ダルビン',
+];
+
+/** 外国人名（姓＋登録名）。NPBの登録名風に姓のみ表記する */
+export function makeForeignName(rng: Rng): string {
+  const last = rng.pick(FOREIGN_NAMES);
+  return rng.chance(0.3) ? `${last}・${rng.pick(FOREIGN_FIRST)}` : last;
+}
 
 // ── ポイント予算（カスタム作成・自動生成の共通上限） ──
 export const BATTER_BUDGET = 240; // ミート+パワー+走力+守備 の合計上限
@@ -111,6 +121,7 @@ function finalize(rng: Rng, p: Player, isPitcher: boolean): Player {
   } else {
     p.abilities = [];
   }
+  p.fatigue = 0;
   p.salary = salaryFor(p);
   return p;
 }
@@ -313,7 +324,14 @@ export function generateTeam(rng: Rng, meta: { name: string; short: string }, st
   ];
   const farm = makeFarm(rng, strength);
 
-  dedupeNames([...lineup, ...rotation, ...bench, ...bullpen, ...farm], rng);
+  // NPB風に数人を助っ人外国人に（打者2・投手1）
+  makeForeign(rng, lineup[3]); // 主軸打者
+  makeForeign(rng, lineup[6]);
+  makeForeign(rng, rotation[1]);
+
+  const all = [...lineup, ...rotation, ...bench, ...bullpen, ...farm];
+  dedupeNames(all, rng);
+  assignNumbers(all);
 
   return {
     name: meta.name,
@@ -330,6 +348,41 @@ export function generateTeam(rng: Rng, meta: { name: string; short: string }, st
     coaches: generateCoaches(rng),
     funds: PAYROLL_CAP,
   };
+}
+
+/** 既存選手を助っ人外国人にする（名前を外国人名へ、能力を少し底上げ） */
+export function makeForeign(rng: Rng, p: Player): void {
+  p.foreign = true;
+  p.name = makeForeignName(rng);
+  if (p.pitches) {
+    p.pitches.velocity = Math.min(99, p.pitches.velocity + rng.int(3, 9));
+  } else {
+    p.bats.power = Math.min(99, p.bats.power + rng.int(4, 12));
+  }
+  p.salary = salaryFor(p);
+}
+
+/** チームに背番号を割り当てる（投手は2桁帯、野手は1桁〜） */
+function assignNumbers(players: Player[]): void {
+  const used = new Set<number>();
+  for (const p of players) if (p.uniform) used.add(p.uniform);
+  let pNum = 11;
+  let fNum = 1;
+  for (const p of players) {
+    if (p.uniform) continue;
+    let n: number;
+    if (p.pitches) {
+      n = pNum;
+      while (used.has(n)) n++;
+      pNum = n + 1;
+    } else {
+      n = fNum;
+      while (used.has(n) || (n >= 11 && n <= 28)) n++;
+      fNum = n + 1;
+    }
+    p.uniform = n;
+    used.add(n);
+  }
 }
 
 /** 二軍を生成（若手中心・14人。うち4人は育成契約） */
@@ -367,11 +420,14 @@ export function upgradeTeam(team: Team, rng: Rng): void {
     team.farm.push(fp);
   }
 
-  dedupeNames([...team.lineup, ...team.rotation, ...team.bullpen, ...team.bench, ...team.farm], rng);
-  for (const p of [...team.lineup, ...team.rotation, ...team.bullpen, ...team.bench, ...team.farm]) {
+  const everyone = [...team.lineup, ...team.rotation, ...team.bullpen, ...team.bench, ...team.farm];
+  dedupeNames(everyone, rng);
+  for (const p of everyone) {
     p.condition ??= 2;
     p.rest ??= 0;
+    p.fatigue ??= 0;
   }
+  if (everyone.some((p) => !p.uniform)) assignNumbers(everyone);
 }
 
 /** 能力値（0-99）→ パワプロ風グレード S/A/B/C/D/E/F/G */

@@ -368,7 +368,10 @@ export function progressTick(league: LeagueState, result: GameResult): string[] 
   for (const team of league.teams) {
     driftCondition(team, rng);
     const played = team.shortName === result.away.team.shortName || team.shortName === result.home.team.shortName;
-    if (played) applyRest(team, appeared);
+    if (played) {
+      const tl = team.shortName === result.away.team.shortName ? result.away : result.home;
+      applyFatigue(team, appeared, tl.team.pitcher?.id ?? null);
+    }
     if (team.shortName === myShort) simulateFarmGame(league, team, rng);
   }
 
@@ -457,31 +460,39 @@ export function progressTick(league: LeagueState, result: GameResult): string[] 
 export function rotateStarter(team: Team): void {
   const rot = team.rotation ?? [team.pitcher];
   if (rot.length === 0) return;
-  let idx = team.rotationIdx ?? 0;
+  const idx = team.rotationIdx ?? 0;
+  // ローテ順で、疲労が十分に抜けた（<45）投手を先発に
   for (let i = 0; i < rot.length; i++) {
     const cand = rot[(idx + i) % rot.length];
-    if ((cand.rest ?? 0) <= 0) {
+    if ((cand.fatigue ?? 0) < 45) {
       team.pitcher = cand;
       team.rotationIdx = (idx + i + 1) % rot.length;
       return;
     }
   }
-  // 全員休養中なら最も回復が近い投手を強行登板
-  team.pitcher = rot[idx % rot.length];
+  // 全員疲労していれば最も元気な投手を強行先発
+  let best = rot[0];
+  for (const c of rot) if ((c.fatigue ?? 0) < (best.fatigue ?? 0)) best = c;
+  team.pitcher = best;
   team.rotationIdx = (idx + 1) % rot.length;
 }
 
-/** 登板した投手に休養を課し、他は1回復させる（試合後に呼ぶ） */
-function applyRest(team: Team, appeared: Set<string>): void {
-  const rot = team.rotation ?? [];
-  for (const p of [...rot, ...team.bullpen]) {
-    if (appeared.has(p.id)) {
-      // 先発はローテ1巡（中3試合）、リリーフは1試合休み
-      p.rest = rot.includes(p) ? 3 : 1;
+/** 出場で疲労を蓄積、非出場で回復させる（試合後に呼ぶ。野手・投手とも） */
+function applyFatigue(team: Team, appeared: Set<string>, started: string | null): void {
+  const onfield = [...team.lineup, ...(team.rotation ?? []), ...team.bullpen];
+  for (const p of onfield) {
+    const cur = p.fatigue ?? 0;
+    if (p.id === started) {
+      // 先発完投級: 大きく消耗（スタミナ能力が高いほど軽い）
+      p.fatigue = Math.min(100, cur + 58 - (p.pitches?.stamina ?? 50) * 0.18);
+    } else if (appeared.has(p.id)) {
+      p.fatigue = Math.min(100, cur + (p.pitches ? 26 : 14));
     } else {
-      p.rest = Math.max(0, (p.rest ?? 0) - 1);
+      p.fatigue = Math.max(0, cur - 16); // ベンチ・登板回避で回復
     }
   }
+  // 二軍は常に回復
+  for (const p of team.farm ?? []) p.fatigue = Math.max(0, (p.fatigue ?? 0) - 14);
 }
 
 /** 調子をランダムウォークさせる（全員、試合ごと） */

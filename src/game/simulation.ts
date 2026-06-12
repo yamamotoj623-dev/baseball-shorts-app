@@ -64,7 +64,7 @@ function makeSide(team: Team): SideState {
     meta: team,
     lineup: team.lineup.map(clonePlayer),
     bench: team.bench.map(clonePlayer),
-    bullpen: team.bullpen.filter((p) => (p.rest ?? 0) <= 0).map(clonePlayer),
+    bullpen: team.bullpen.filter((p) => (p.fatigue ?? 0) < 70).map(clonePlayer),
     pitcher: clonePlayer(team.pitcher),
     repertoire: C.deriveRepertoire(team.pitcher),
     pitchCount: 0,
@@ -112,7 +112,9 @@ function fielderAt(def: SideState, positions: string[], rng: Rng): Player {
 function moraleMul(p: Player): number {
   const m = p.motivation ?? 60;
   const c = p.condition ?? 2;
-  return (0.94 + (m / 100) * 0.12) * (1 + (c - 2) * 0.03);
+  const fatigue = p.fatigue ?? 0;
+  // 疲労は最大-18%まで能力を削る
+  return (0.94 + (m / 100) * 0.12) * (1 + (c - 2) * 0.03) * (1 - (fatigue / 100) * 0.18);
 }
 
 function has(p: Player, ability: string): boolean {

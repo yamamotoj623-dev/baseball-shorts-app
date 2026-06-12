@@ -32,6 +32,17 @@ export function CondMark({ p }: { p: Player }) {
   );
 }
 
+/** スタミナ（疲労の裏返し）バー。緑→黄→赤 */
+export function StaminaBar({ p }: { p: Player }) {
+  const sta = Math.max(0, 100 - (p.fatigue ?? 0));
+  const cls = sta > 60 ? 'ok' : sta > 30 ? 'mid' : 'low';
+  return (
+    <span className="sta" title={`スタミナ ${sta}`}>
+      <span className={`sta__fill sta__fill--${cls}`} style={{ width: `${sta}%` }} />
+    </span>
+  );
+}
+
 /** 1能力の色付きグレード（S赤〜G灰） */
 function G({ label, v }: { label: string; v: number }) {
   const g = grade(v);
@@ -157,6 +168,7 @@ function DragLineup({
           </button>
           <CondMark p={p} />
           <span className="rrow__name">{p.name}</span>
+          <StaminaBar p={p} />
           <StatGrades p={p} />
         </div>
       ))}
@@ -208,6 +220,7 @@ export function RosterEditor({ league, team, onChange, onClose }: Props) {
               <PosBadge pos={p.position} />
               <CondMark p={p} />
               <span className="rrow__name">{p.name}</span>
+              <StaminaBar p={p} />
               <StatGrades p={p} />
               <select
                 className="rrow__sel"
@@ -246,8 +259,9 @@ export function RosterEditor({ league, team, onChange, onClose }: Props) {
               <PosBadge pos="投" />
               <CondMark p={p} />
               <span className="rrow__name">{p.name}</span>
+              <StaminaBar p={p} />
               <StatGrades p={p} />
-              <span className={`rrow__rest ${p.rest ? 'rrow__rest--ng' : ''}`}>{p.rest ? `休${p.rest}` : '可'}</span>
+              <span className={`rrow__rest ${(p.fatigue ?? 0) >= 45 ? 'rrow__rest--ng' : ''}`}>{(p.fatigue ?? 0) >= 70 ? '疲労' : (p.fatigue ?? 0) >= 45 ? '回復中' : '万全'}</span>
               <button
                 className="rrow__btn"
                 onClick={() => {
@@ -271,8 +285,9 @@ export function RosterEditor({ league, team, onChange, onClose }: Props) {
               <PosBadge pos="投" />
               <CondMark p={p} />
               <span className="rrow__name">{p.name}{i === team.bullpen.length - 1 ? '（抑え）' : ''}</span>
+              <StaminaBar p={p} />
               <StatGrades p={p} />
-              <span className={`rrow__rest ${p.rest ? 'rrow__rest--ng' : ''}`}>{p.rest ? `休${p.rest}` : '可'}</span>
+              <span className={`rrow__rest ${(p.fatigue ?? 0) >= 70 ? 'rrow__rest--ng' : ''}`}>{(p.fatigue ?? 0) >= 70 ? '疲労' : '可'}</span>
             </div>
           ))}
         </div>

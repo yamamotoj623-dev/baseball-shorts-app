@@ -59,6 +59,10 @@ export interface Player {
   condition?: number;
   /** 登板後の残り休養試合数（投手。0で登板可） */
   rest?: number;
+  /** 疲労 0〜100（0=万全。出場で蓄積し、休養で回復。能力に反映） */
+  fatigue?: number;
+  /** 背番号 */
+  uniform?: number;
   /** 育成契約か（一軍出場には支配下登録が必要） */
   ikusei?: boolean;
 }

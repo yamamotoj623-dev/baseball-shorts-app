@@ -2050,3 +2050,26 @@ h1, h2, h3, .btn, .playcta, .tab, .nav__item, .banner__name, .match__team,
   border-color: var(--accent);
   background: var(--panel-2);
 }
+
+/* ════ スタミナバー / エディタ強化 / 監督コーチ ════ */
+.sta { display:inline-block; width:42px; height:7px; border-radius:4px; background:#2a3340; overflow:hidden; flex:0 0 auto; }
+.sta__fill { display:block; height:100%; border-radius:4px; }
+.sta__fill--ok { background:linear-gradient(90deg,#2ea043,#56d364); }
+.sta__fill--mid { background:linear-gradient(90deg,#d29922,#e3b341); }
+.sta__fill--low { background:linear-gradient(90deg,#da3633,#f85149); }
+
+.editor__ovr { font-family:var(--num); font-weight:700; font-size:22px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; border-radius:8px; background:#232c3a; }
+.editor__numin { width:64px; background:var(--panel); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:10px 8px; font-family:var(--num); }
+.editor__grade { font-family:var(--num); font-weight:700; width:18px; text-align:center; }
+.editor__grade--S{color:#fff;background:linear-gradient(135deg,#ff4d6d,#c81d4e);border-radius:4px;}
+.editor__grade--A{color:#ff7043;} .editor__grade--B{color:#ffb300;} .editor__grade--C{color:#66bb6a;}
+.editor__grade--D{color:#42a5f5;} .editor__grade--E{color:#7e9bb5;} .editor__grade--F{color:#6b7682;} .editor__grade--G{color:#4b535d;}
+.editor__bar{flex:1 1 auto;height:8px;background:#2a3340;border-radius:5px;overflow:hidden;min-width:40px;}
+.editor__barfill{display:block;height:100%;border-radius:5px;}
+.bar--S{background:linear-gradient(90deg,#ff4d6d,#ff8fa3);} .bar--A{background:#ff7043;} .bar--B{background:#ffb300;}
+.bar--C{background:#66bb6a;} .bar--D{background:#42a5f5;} .bar--E{background:#7e9bb5;} .bar--F{background:#6b7682;} .bar--G{background:#4b535d;}
+.editor__stat{display:flex;align-items:center;gap:6px;}
+.builder__coach{display:inline-flex;align-items:center;gap:5px;}
+.builder__ctype{font-size:11px;color:var(--muted);background:var(--panel-2);border-radius:5px;padding:2px 6px;}
+.builder__input--coach{flex:0 0 110px;padding:7px 9px;font-size:13px;}
+.builder__cskill{font-size:11px;color:var(--gold);}
