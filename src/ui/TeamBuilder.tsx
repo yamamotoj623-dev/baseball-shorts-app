@@ -18,6 +18,7 @@ import {
   makeForeignName,
   budgetFor as _bf,
 } from '../game/players';
+import { aptMark } from '../game/players';
 import { createRng } from '../game/rng';
 
 /** 総合グレード（全能力の平均→S〜G） */
@@ -320,6 +321,25 @@ export function PlayerEditor({ player, onChange, onClose }: { player: Player; on
             {stat('走力', () => player.bats.speed, (v) => (player.bats.speed = v))}
             {stat('守備', () => player.bats.defense, (v) => (player.bats.defense = v))}
           </>
+        )}
+
+        {player.pitches && player.arsenal && (
+          <div className="editor__arsenal">
+            <span className="editor__slabel">持ち球（変化量）</span>
+            {player.arsenal.map((a, i) => (
+              <span key={i} className="arsen">
+                {a.name}{a.break > 0 ? <b className={`gr__v gr__v--${grade(a.break)}`}>{grade(a.break)}</b> : ''}
+              </span>
+            ))}
+          </div>
+        )}
+        {!player.pitches && player.apt && (
+          <div className="editor__arsenal">
+            <span className="editor__slabel">守備適性</span>
+            {Object.entries(player.apt).map(([pos, v]) => (
+              <span key={pos} className="arsen">{pos}<b>{aptMark(v as number)}</b></span>
+            ))}
+          </div>
         )}
 
         <div className="editor__abilities">

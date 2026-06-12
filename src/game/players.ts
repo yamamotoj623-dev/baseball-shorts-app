@@ -109,11 +109,54 @@ export function salaryFor(p: Player): number {
   return Math.round(base / 100) * 100;
 }
 
+// 守備の隣接ポジション（メイン以外に守れる候補）
+const ADJACENT: Partial<Record<Position, Position[]>> = {
+  捕: ['一'],
+  一: ['三', '左', '右'],
+  二: ['遊', '三'],
+  三: ['一', '遊'],
+  遊: ['二', '三'],
+  左: ['中', '右', '一'],
+  中: ['左', '右'],
+  右: ['左', '中', '一'],
+  指: ['一', '左', '右'],
+};
+
+const PITCH_NAMES = ['ストレート', 'ツーシーム', 'カットボール', 'スライダー', 'カーブ', 'フォーク', 'チェンジアップ', 'シンカー', 'スプリット', 'スラーブ'];
+
+/** 守備適性を生成（メイン100、隣接に中程度、まれに器用） */
+function makeApt(rng: Rng, main: Position): Partial<Record<Position, number>> {
+  const apt: Partial<Record<Position, number>> = { [main]: 90 + rng.int(0, 10) };
+  for (const adj of ADJACENT[main] ?? []) {
+    if (rng.chance(0.5)) apt[adj] = 40 + rng.int(0, 45); // △〜○
+  }
+  // ユーティリティ型はさらに広い
+  if (rng.chance(0.12)) {
+    const extra = rng.pick(FIELD_POSITIONS.filter((x) => x !== '指' && !(x in apt)));
+    apt[extra] = 35 + rng.int(0, 30);
+  }
+  return apt;
+}
+
+/** 投手の持ち球を生成（ストレート＋変化球2〜4種、変化量つき） */
+function makeArsenal(rng: Rng, strength: number): { name: string; break: number }[] {
+  const arsenal = [{ name: 'ストレート', break: 0 }];
+  const pool = PITCH_NAMES.slice(1);
+  const n = 2 + rng.int(0, 3); // 計3〜5球種
+  for (let i = 0; i < n && pool.length; i++) {
+    const name = pool.splice(rng.int(0, pool.length), 1)[0];
+    arsenal.push({ name, break: stat(rng, strength - 6, 18) });
+  }
+  return arsenal;
+}
+
 function finalize(rng: Rng, p: Player, isPitcher: boolean): Player {
   p.age = 18 + rng.int(0, 18);
   p.hand = makeHand(rng, isPitcher);
   p.motivation = 50 + rng.int(0, 25);
   p.potential = stat(rng, 50, 30);
+  if (isPitcher) p.arsenal = makeArsenal(rng, p.pitches!.velocity);
+  else if (p.position !== '指') p.apt = makeApt(rng, p.position);
   // 1〜2割の選手が特殊能力持ち
   if (rng.chance(0.18)) {
     const pool = isPitcher ? PITCHER_ABILITIES : BATTER_ABILITIES;
@@ -189,6 +232,7 @@ export function blankBatter(position: Position): Player {
     abilities: [],
     motivation: 60,
     potential: 50,
+    apt: { [position]: 95 },
   };
 }
 
@@ -207,6 +251,11 @@ export function blankPitcher(): Player {
     abilities: [],
     motivation: 60,
     potential: 50,
+    arsenal: [
+      { name: 'ストレート', break: 0 },
+      { name: 'スライダー', break: 50 },
+      { name: 'フォーク', break: 50 },
+    ],
   };
 }
 
@@ -235,6 +284,7 @@ export function randomizePlayer(p: Player, rng: Rng): void {
     p.pitches.control = Math.max(20, Math.min(99, Math.round((budget * w[1]) / sum)));
     p.pitches.stamina = Math.max(20, Math.min(99, budget - p.pitches.velocity - p.pitches.control));
     if (rng.chance(0.35)) p.abilities = [rng.pick([...PITCHER_ABILITIES])];
+    p.arsenal = makeArsenal(rng, p.pitches.velocity);
   } else {
     const w = [rng.next() + 0.4, rng.next() + 0.4, rng.next() + 0.3, rng.next() + 0.3];
     const sum = w.reduce((a, b) => a + b, 0);
@@ -243,8 +293,14 @@ export function randomizePlayer(p: Player, rng: Rng): void {
     const sp = Math.max(15, Math.min(99, Math.round((budget * w[2]) / sum)));
     p.bats = { meet: m, power: pw, speed: sp, defense: Math.max(10, Math.min(99, budget - m - pw - sp)) };
     if (rng.chance(0.35)) p.abilities = [rng.pick([...BATTER_ABILITIES])];
+    if (p.position !== '指') p.apt = makeApt(rng, p.position);
   }
   p.salary = salaryFor(p);
+}
+
+/** 守備適性のグレード記号（◎○△・空） */
+export function aptMark(v: number): string {
+  return v >= 85 ? '◎' : v >= 60 ? '○' : v >= 35 ? '△' : '✕';
 }
 
 /** カスタム球団のひな型（17人ロスター: 打順9・先発1・救援3・控え4） */
@@ -426,6 +482,8 @@ export function upgradeTeam(team: Team, rng: Rng): void {
     p.condition ??= 2;
     p.rest ??= 0;
     p.fatigue ??= 0;
+    if (p.pitches) p.arsenal ??= makeArsenal(rng, p.pitches.velocity);
+    else if (p.position !== '指') p.apt ??= makeApt(rng, p.position);
   }
   if (everyone.some((p) => !p.uniform)) assignNumbers(everyone);
 }
@@ -481,14 +539,38 @@ function makeReliever(rng: Rng, strength: number, velocityBonus: number): Player
   return p;
 }
 
-/** リーグの全球団を生成（チーム名は重複しない） */
+const ARCHETYPES: NonNullable<Team['archetype']>[] = ['強打', '投手王国', '機動力', '守備堅守', 'バランス', '強打'];
+
+/** 球団の個性（アーキタイプ）に応じて能力を寄せる */
+function applyArchetype(team: Team, arch: NonNullable<Team['archetype']>): void {
+  team.archetype = arch;
+  const up = (v: number, d: number) => Math.max(1, Math.min(99, v + d));
+  for (const p of team.lineup) {
+    if (arch === '強打') p.bats.power = up(p.bats.power, 7);
+    if (arch === '機動力') p.bats.speed = up(p.bats.speed, 9);
+    if (arch === '守備堅守') p.bats.defense = up(p.bats.defense, 8);
+  }
+  if (arch === '投手王国') {
+    for (const p of [...(team.rotation ?? []), ...team.bullpen]) {
+      if (p.pitches) {
+        p.pitches.velocity = up(p.pitches.velocity, 5);
+        p.pitches.control = up(p.pitches.control, 5);
+      }
+    }
+  }
+}
+
+/** リーグの全球団を生成（チーム名は重複しない。各球団に個性を付与） */
 export function generateLeague(rng: Rng, count: number = 6): Team[] {
   const pool = [...TEAM_POOL];
   const teams: Team[] = [];
+  const archs = [...ARCHETYPES].sort(() => rng.next() - 0.5);
   const n = Math.min(count, pool.length); // pool は splice で縮むため先に確定させる
   for (let i = 0; i < n; i++) {
     const meta = pool.splice(rng.int(0, pool.length), 1)[0];
-    teams.push(generateTeam(rng, { name: meta.name, short: meta.short }, stat(rng, 52, 8)));
+    const team = generateTeam(rng, { name: meta.name, short: meta.short }, stat(rng, 52, 8));
+    applyArchetype(team, archs[i % archs.length]);
+    teams.push(team);
   }
   return teams;
 }

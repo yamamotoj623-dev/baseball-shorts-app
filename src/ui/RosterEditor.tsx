@@ -4,6 +4,7 @@ import {
   CONDITION_MARKS,
   CONDITION_LABELS,
   grade,
+  aptMark,
   posClass,
   playerValue,
   registeredCount,
@@ -14,6 +15,7 @@ import {
   genDraftCandidates,
   proposeTrade,
   SEASON_LENGTH,
+  currentDate,
   type LeagueState,
 } from '../game/league';
 
@@ -170,9 +172,24 @@ function DragLineup({
           <span className="rrow__name">{p.name}</span>
           <StaminaBar p={p} />
           <StatGrades p={p} />
+          <AptLine p={p} />
         </div>
       ))}
     </div>
+  );
+}
+
+/** 守備適性の表示（メイン以外に守れる位置） */
+export function AptLine({ p }: { p: Player }) {
+  if (!p.apt) return null;
+  const entries = Object.entries(p.apt).filter(([pos]) => pos !== p.position);
+  if (entries.length === 0) return null;
+  return (
+    <span className="aptline">
+      {entries.map(([pos, v]) => (
+        <span key={pos} className="aptline__i">{pos}{aptMark(v as number)}</span>
+      ))}
+    </span>
   );
 }
 
@@ -191,6 +208,7 @@ export function RosterEditor({ league, team, onChange, onClose }: Props) {
   const [posSwap, setPosSwap] = useState<number | null>(null);
   const [tradeMine, setTradeMine] = useState<Player | null>(null);
   const [tradeMsg, setTradeMsg] = useState('');
+  const date = currentDate(league);
 
   return (
     <section className="roster-ed">
@@ -347,7 +365,10 @@ export function RosterEditor({ league, team, onChange, onClose }: Props) {
         </div>
       )}
 
-      {tab === 'トレード' && (
+      {tab === 'トレード' && !date.canTrade && (
+        <p className="stats__empty">トレード期限（7月末）を過ぎました。次のシーズンの開幕後〜7月に交渉できます。</p>
+      )}
+      {tab === 'トレード' && date.canTrade && (
         <div>
           <p className="roster-ed__hint">
             同タイプ（野手⇔野手 / 投手⇔投手）で価値が釣り合えば成立。まず放出する自軍選手を選択

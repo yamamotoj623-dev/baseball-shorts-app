@@ -2073,3 +2073,12 @@ h1, h2, h3, .btn, .playcta, .tab, .nav__item, .banner__name, .match__team,
 .builder__ctype{font-size:11px;color:var(--muted);background:var(--panel-2);border-radius:5px;padding:2px 6px;}
 .builder__input--coach{flex:0 0 110px;padding:7px 9px;font-size:13px;}
 .builder__cskill{font-size:11px;color:var(--gold);}
+
+/* ════ カレンダー / 守備適性 / 球団個性 ════ */
+.topbar__date { font-family:var(--num); font-size:13px; color:#cfe3ff; font-weight:700; margin-right:auto; }
+.aptline { display:inline-flex; gap:3px; }
+.aptline__i { font-size:10px; color:var(--muted); background:rgba(255,255,255,0.05); border-radius:4px; padding:1px 4px; }
+.match__arch { font-size:10px; color:#0d1117; background:var(--gold); border-radius:4px; padding:1px 7px; font-weight:800; margin-top:2px; }
+.editor__arsenal { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:8px 0; }
+.arsen { font-size:12px; background:var(--panel-2); border:1px solid var(--line); border-radius:6px; padding:3px 7px; display:inline-flex; align-items:center; gap:3px; }
+.arsen b { font-size:12px; }

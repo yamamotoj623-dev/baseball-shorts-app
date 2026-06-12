@@ -19,6 +19,7 @@ import {
   spendStamina,
   spendTicket,
   standings,
+  currentDate,
   STAMINA_MAX,
   type LeagueState,
 } from './game/league';
@@ -326,6 +327,7 @@ export function App() {
     return () => clearInterval(id);
   }, [league]);
 
+  const gdate = currentDate(league);
   const eraOf = (id: string) => {
     const t = league.pit[id];
     return t && t.outs > 0 ? ((t.runs * 9) / (t.outs / 3)).toFixed(2) : '-';
@@ -356,6 +358,7 @@ export function App() {
           {screen === 'game' && phase !== 'playing' && (
             <div className="topbar">
               <span className="topbar__logo">劇場ペナント</span>
+              <span className="topbar__date">{gdate.year}年{gdate.month}月{gdate.day}日</span>
               <span className="topbar__res">🏦 {myTeam.funds != null ? (myTeam.funds / 10000).toFixed(1) : '-'}億</span>
               <span className="topbar__res">⚡ {stamina}/{STAMINA_MAX}</span>
               <span className="topbar__res">🎟 {tickets}{tickets < 5 && ticketWait > 0 ? ` (${Math.ceil(ticketWait / 60000)}分)` : ''}</span>
@@ -392,7 +395,7 @@ export function App() {
                         <span className="rankcard__rank">{myRank}<small>位</small></span>
                         <span className="rankcard__rec">{myRec.w}勝{myRec.l}敗{myRec.t > 0 ? `${myRec.t}分` : ''}</span>
                       </div>
-                      <div className="rankcard__round">第{(league.games % 30) + 1}戦 / 30（第{Math.floor(league.games / 30) + 1}年度）</div>
+                      <div className="rankcard__round">{gdate.year}年 {gdate.month}月{gdate.day}日 ・ {gdate.phase}（{Math.floor(league.games / 30) + 1}年目 第{(league.games % 30) + 1}戦）</div>
                     </div>
                   )}
                   <MatchCard

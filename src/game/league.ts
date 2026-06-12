@@ -12,6 +12,32 @@ const STORAGE_KEY = 'baseball-sim-league-v1';
 const RECENT_GAMES = 5;
 /** この試合数ごとに1年が経過（加齢・年俸更改・決算） */
 export const SEASON_LENGTH = 30;
+/** 開幕年 */
+export const BASE_YEAR = 2026;
+
+export interface GameDate {
+  year: number;
+  month: number;
+  day: number;
+  /** その時期の局面 */
+  phase: string;
+  /** トレード・育成支配下登録が可能か（7月末まで） */
+  canTrade: boolean;
+}
+
+/** 現在の日付・局面を消化試合数から導出（4月開幕〜9月、節目に行事） */
+export function currentDate(league: LeagueState): GameDate {
+  const g = league.games;
+  const seasonIdx = g % SEASON_LENGTH; // 0..29
+  const year = BASE_YEAR + Math.floor(g / SEASON_LENGTH);
+  const month = 4 + Math.floor(seasonIdx / 5); // 4..9（5試合=1ヶ月）
+  const day = (seasonIdx % 5) * 6 + 1;
+  let phase = '開幕ダッシュ';
+  if (seasonIdx >= 27) phase = 'クライマックス・優勝争い';
+  else if (seasonIdx >= 20) phase = '夏場の正念場';
+  else if (seasonIdx >= 10) phase = 'ペナントレース';
+  return { year, month, day, phase, canTrade: month <= 7 };
+}
 
 /** シーズン通算（打者） */
 export interface BatTotals {

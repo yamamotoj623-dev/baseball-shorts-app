@@ -63,6 +63,12 @@ export interface Player {
   fatigue?: number;
   /** 背番号 */
   uniform?: number;
+  /** 守備適性（ポジション→適性0〜100。◎100/○75/△50/×0未満は不可） */
+  apt?: Partial<Record<Position, number>>;
+  /** 持ち球（投手。球種名と変化量0〜100） */
+  arsenal?: { name: string; break: number }[];
+  /** ベンチ役割（代打/代走/守備固め） */
+  benchRole?: '代打' | '代走' | '守備固め';
   /** 育成契約か（一軍出場には支配下登録が必要） */
   ikusei?: boolean;
 }
@@ -108,6 +114,8 @@ export interface Team {
   scout?: { name: string; skill: number };
   /** ローテの巡り（次に投げる先発の index） */
   rotationIdx?: number;
+  /** 球団の性格（生成バイアス＝チームカラー/個性） */
+  archetype?: '強打' | '投手王国' | '機動力' | '守備堅守' | 'バランス';
 }
 
 /** 1試合の集計（簡易ボックススコア） */

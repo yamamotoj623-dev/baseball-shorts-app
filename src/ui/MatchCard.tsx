@@ -52,6 +52,7 @@ function Side({ team, rec, mine }: { team: Team; rec?: TeamRecord; mine: boolean
         {team.shortName}
         {mine && <span className="match__mine">MY</span>}
       </div>
+      {team.archetype && <div className="match__arch">{team.archetype}</div>}
       <div className="match__rec">{rec ? `${rec.w}勝${rec.l}敗${rec.t > 0 ? `${rec.t}分` : ''}` : '開幕前'}</div>
     </div>
   );

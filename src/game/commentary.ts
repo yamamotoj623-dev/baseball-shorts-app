@@ -58,6 +58,8 @@ const ZONES = [
 
 /** 投手ID から決まった球種レパートリーを作る（同じ投手は毎回同じ持ち球） */
 export function deriveRepertoire(pitcher: Player): string[] {
+  // 持ち球が設定されていればそれを使う
+  if (pitcher.arsenal && pitcher.arsenal.length > 0) return pitcher.arsenal.map((a) => a.name);
   let h = 2166136261;
   for (const ch of pitcher.id) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
   const rep = new Set<string>(['ストレート']);
