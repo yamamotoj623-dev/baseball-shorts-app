@@ -345,8 +345,21 @@ function allPlayersOf(team: Team): Player[] {
   return [...team.lineup, team.pitcher, ...team.bullpen, ...team.bench];
 }
 
-/** 年齢による成長係数（若手は伸び、ベテランは止まり、高齢は衰える） */
-function ageFactor(age: number): number {
+/** 年齢×成長タイプによる成長係数（早熟は若くピーク、晩成は30代でも伸びる） */
+function ageFactor(age: number, growth?: string): number {
+  if (growth === '早熟') {
+    if (age <= 20) return 1.3;
+    if (age <= 24) return 0.6;
+    if (age <= 27) return 0.15;
+    return 0;
+  }
+  if (growth === '晩成') {
+    if (age <= 22) return 0.5;
+    if (age <= 27) return 0.7;
+    if (age <= 31) return 0.55;
+    if (age <= 34) return 0.25;
+    return 0;
+  }
   if (age <= 23) return 1.0;
   if (age <= 27) return 0.55;
   if (age <= 30) return 0.25;
@@ -419,7 +432,7 @@ export function progressTick(league: LeagueState, result: GameResult): string[] 
       // 成長: 出場した選手のみ。年齢×素質×コーチで確率が決まる
       if (!appeared.has(p.id)) continue;
       const coach = coachSkillOf(realTeam, p.pitches ? '投手' : '打撃');
-      const growP = 0.16 * ageFactor(p.age ?? 27) * (0.7 + (p.potential ?? 50) / 140) * (1 + (coach - 50) / 250);
+      const growP = 0.16 * ageFactor(p.age ?? 27, p.growth) * (0.7 + (p.potential ?? 50) / 140) * (1 + (coach - 50) / 250);
       if (rng.chance(Math.max(0, growP))) {
         const msg = bumpStat(p, rng, 1);
         if (msg && isMine) news.push(`📈 ${p.name}が成長（${msg}）`);

@@ -18,7 +18,7 @@ import {
   makeForeignName,
   budgetFor as _bf,
 } from '../game/players';
-import { aptMark } from '../game/players';
+import { aptMark, pitchDir } from '../game/players';
 import { createRng } from '../game/rng';
 
 /** 総合グレード（全能力の平均→S〜G） */
@@ -286,7 +286,8 @@ export function PlayerEditor({ player, onChange, onClose }: { player: Player; on
 
         <div className="editor__rows">
           <div className="editor__row">
-            <span>年齢 {player.age}</span>
+<span>年齢 {player.age}</span>
+            {player.growth && <span className="editor__growth">{player.growth === '早熟' ? '早熟型' : player.growth === '晩成' ? '大器晩成' : 'バランス型'}</span>}
             <button className="editor__btn" onClick={() => { player.age = Math.max(18, (player.age ?? 24) - 1); onChange(); }}>-</button>
             <button className="editor__btn" onClick={() => { player.age = Math.min(40, (player.age ?? 24) + 1); onChange(); }}>+</button>
             <span className="editor__sep" />
@@ -336,7 +337,7 @@ export function PlayerEditor({ player, onChange, onClose }: { player: Player; on
             <span className="editor__slabel">持ち球（変化量）</span>
             {player.arsenal.map((a, i) => (
               <span key={i} className="arsen">
-                {a.name}{a.break > 0 ? <b className={`gr__v gr__v--${grade(a.break)}`}>{grade(a.break)}</b> : ''}
+                <span className="arsen__dir">{pitchDir(a.name)}</span>{a.name}{a.break > 0 ? <b className={`gr__v gr__v--${grade(a.break)}`}>{grade(a.break)}</b> : ''}
               </span>
             ))}
           </div>

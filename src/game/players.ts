@@ -16,20 +16,27 @@ const GIVEN_NAMES = [
 ];
 
 /** 架空チーム名のプール（地名 + 愛称 + 球団カラー） */
-const TEAM_POOL: { name: string; short: string; color: string }[] = [
-  { name: '東京グランツ', short: 'TYO', color: '#c9962f' },
-  { name: '浪速タイガーズ', short: 'NAN', color: '#f2c200' },
-  { name: '中部ドラゴンズ', short: 'CHU', color: '#0b3da0' },
-  { name: '広島カープス', short: 'HIR', color: '#da3633' },
-  { name: '東京スパローズ', short: 'TSW', color: '#0a7d4f' },
-  { name: '横浜ベイズ', short: 'YOK', color: '#1f6feb' },
-  { name: '福岡ホークズ', short: 'FUK', color: '#d4a017' },
-  { name: '北海ファイターズ', short: 'HOK', color: '#5b6770' },
-  { name: '房総マリナーズ', short: 'BSO', color: '#111418' },
-  { name: '東北イーグルズ', short: 'TOH', color: '#8a0f1a' },
-  { name: '武蔵ライオンズ', short: 'MSI', color: '#0a4ea0' },
-  { name: '摂津バッファローズ', short: 'STU', color: '#1a2740' },
+const TEAM_POOL: { name: string; short: string; color: string; abbr: string }[] = [
+  { name: '東京グランツ', short: 'TYO', color: '#c9962f', abbr: '東京' },
+  { name: '浪速タイガーズ', short: 'NAN', color: '#f2c200', abbr: '浪速' },
+  { name: '名城ドラゴンズ', short: 'NGY', color: '#0b3da0', abbr: '名城' },
+  { name: '広島カープス', short: 'HIR', color: '#da3633', abbr: '広島' },
+  { name: '神宮スパローズ', short: 'JNG', color: '#0a7d4f', abbr: '神宮' },
+  { name: '横浜ベイズ', short: 'YOK', color: '#1f6feb', abbr: '横浜' },
+  { name: '福岡ホークズ', short: 'FUK', color: '#d4a017', abbr: '福岡' },
+  { name: '北海ファイターズ', short: 'HOK', color: '#5b6770', abbr: '北海' },
+  { name: '房総マリナーズ', short: 'BSO', color: '#111418', abbr: '房総' },
+  { name: '東北イーグルズ', short: 'TOH', color: '#8a0f1a', abbr: '東北' },
+  { name: '武蔵ライオンズ', short: 'MSI', color: '#0a4ea0', abbr: '武蔵' },
+  { name: '摂津バッファローズ', short: 'STU', color: '#1a2740', abbr: '摂津' },
 ];
+
+/** 順位表などで使う日本語略称（既定球団は固定、カスタムは名前の先頭2字） */
+export function teamAbbr(team: { name: string; shortName: string }): string {
+  const found = TEAM_POOL.find((t) => t.short === team.shortName);
+  if (found) return found.abbr;
+  return (team.name || team.shortName).slice(0, 3);
+}
 
 /** 球団カラー（カスタム球団は略称から安定したハッシュで決まる） */
 export function teamColor(team: { shortName: string }): string {
@@ -128,6 +135,32 @@ const ADJACENT: Partial<Record<Position, Position[]>> = {
 
 const PITCH_NAMES = ['ストレート', 'フォーシーム', 'ツーシーム', 'カットボール', 'シュート', 'スライダー', 'スイーパー', 'カーブ', 'ナックルカーブ', 'スラーブ', 'フォーク', 'スプリット', 'チェンジアップ', 'サークルチェンジ', 'シンカー', 'パワーカーブ', 'ナックル', 'ジャイロボール'];
 
+/** 球種の系統（落ちる=ゴロ&空振り / 横変化=空振り / 速球=フライ） */
+const DROP_BALLS = ['フォーク', 'スプリット', 'シンカー', 'チェンジアップ', 'サークルチェンジ', 'ナックル'];
+const SLIDE_BALLS = ['スライダー', 'スイーパー', 'カーブ', 'ナックルカーブ', 'スラーブ', 'パワーカーブ'];
+
+/** 投手の持ち球から、空振り傾向・ゴロ傾向（0〜1）を算出 */
+export function arsenalTendency(p: Player): { whiff: number; ground: number } {
+  if (!p.arsenal || p.arsenal.length === 0) return { whiff: 0, ground: 0 };
+  let drop = 0;
+  let slide = 0;
+  for (const a of p.arsenal) {
+    if (a.break <= 0) continue;
+    const w = a.break / 99;
+    if (DROP_BALLS.includes(a.name)) drop = Math.max(drop, w);
+    else if (SLIDE_BALLS.includes(a.name)) slide = Math.max(slide, w);
+  }
+  return { whiff: Math.min(1, drop * 0.7 + slide * 0.6), ground: Math.min(1, drop * 0.9) };
+}
+
+/** 球種の方向アイコン（UI用） */
+export function pitchDir(name: string): string {
+  if (DROP_BALLS.includes(name)) return '↓';
+  if (SLIDE_BALLS.includes(name)) return '↘';
+  if (name === 'シュート' || name === 'ツーシーム') return '→';
+  return '↑';
+}
+
 /** 守備適性を生成（メイン100、隣接に中程度、まれに器用） */
 function makeApt(rng: Rng, main: Position): Partial<Record<Position, number>> {
   const apt: Partial<Record<Position, number>> = { [main]: 90 + rng.int(0, 10) };
@@ -159,6 +192,7 @@ function finalize(rng: Rng, p: Player, isPitcher: boolean): Player {
   p.hand = makeHand(rng, isPitcher);
   p.motivation = 50 + rng.int(0, 25);
   p.potential = stat(rng, 50, 30);
+  { const r = rng.next(); p.growth = r < 0.22 ? '早熟' : r < 0.44 ? '晩成' : '普通'; }
   if (isPitcher) p.arsenal = makeArsenal(rng, p.pitches!.velocity);
   else if (p.position !== '指') p.apt = makeApt(rng, p.position);
   // 1〜2割の選手が特殊能力持ち

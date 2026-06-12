@@ -1,6 +1,6 @@
 import type { Team } from '../game/types';
 import type { TeamRecord } from '../game/league';
-import { teamColor } from '../game/players';
+import { teamColor, teamAbbr } from '../game/players';
 import { CondMark } from './RosterEditor';
 
 interface Props {
@@ -46,10 +46,10 @@ function Side({ team, rec, mine }: { team: Team; rec?: TeamRecord; mine: boolean
   return (
     <div className="match__side2">
       <span className={`match__emblem2 ${mine ? 'match__emblem2--mine' : ''}`} style={{ background: `radial-gradient(circle at 32% 28%, ${color}, #0a0e14 130%)` }}>
-        {team.shortName.slice(0, 3)}
+        {teamAbbr(team)}
       </span>
       <div className="match__team">
-        {team.shortName}
+        {teamAbbr(team)}
         {mine && <span className="match__mine">MY</span>}
       </div>
       {team.archetype && <div className="match__arch">{team.archetype}</div>}

@@ -6,6 +6,7 @@
 import type { GameEvent, GameResult, Player, Team, TeamLine } from './types';
 import { createRng, type Rng } from './rng';
 import * as C from './commentary';
+import { arsenalTendency } from './players';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -171,7 +172,8 @@ function throwPitch(batter: Player, side: SideState, strikes: number, risp: bool
   if (rng.chance(pHbp)) return 'hbp';
 
   const pBall = clamp(0.34 + (50 - control) / 270, 0.19, 0.5);
-  const pSwing = clamp(0.095 + (velocity - meet) / 420, 0.04, 0.22);
+  const tend = arsenalTendency(side.pitcher);
+  const pSwing = clamp(0.095 + (velocity - meet) / 420 + tend.whiff * 0.018, 0.04, 0.24);
   const pCalled = 0.14;
   const pFoul = strikes >= 2 ? 0.26 : 0.2;
 
@@ -200,9 +202,11 @@ function resolveInPlay(batter: Player, side: SideState, risp: boolean, inning: n
     if (roll < pHR + pTriple + pDouble) return 'double';
     return 'single';
   }
+  const tend = arsenalTendency(side.pitcher);
   const r = rng.next();
-  if (r < 0.45) return 'groundout';
-  if (r < 0.85) return 'flyout';
+  const groundCut = 0.45 + tend.ground * 0.12; // 落ちる球が多いほどゴロが増える
+  if (r < groundCut) return 'groundout';
+  if (r < groundCut + 0.4 * (1 - tend.ground * 0.4)) return 'flyout';
   return 'lineout';
 }
 

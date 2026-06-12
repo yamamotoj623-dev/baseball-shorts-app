@@ -55,6 +55,8 @@ export interface Player {
   motivation?: number;
   /** 隠し成長性 0-100（高いほど伸びる） */
   potential?: number;
+  /** 成長タイプ（早熟＝若くピーク/普通/晩成＝大器晩成） */
+  growth?: '早熟' | '普通' | '晩成';
   /** 調子 0-4（0=絶不調〜4=絶好調。試合ごとに変動し能力に反映） */
   condition?: number;
   /** 登板後の残り休養試合数（投手。0で登板可） */

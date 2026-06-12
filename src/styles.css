@@ -2082,3 +2082,7 @@ h1, h2, h3, .btn, .playcta, .tab, .nav__item, .banner__name, .match__team,
 .editor__arsenal { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:8px 0; }
 .arsen { font-size:12px; background:var(--panel-2); border:1px solid var(--line); border-radius:6px; padding:3px 7px; display:inline-flex; align-items:center; gap:3px; }
 .arsen b { font-size:12px; }
+
+/* 球種方向 / 成長タイプ */
+.arsen__dir { font-family: var(--num); color: var(--accent); font-weight: 800; }
+.editor__growth { font-size: 11px; background: #6e40c9; color: #fff; border-radius: 5px; padding: 2px 7px; font-weight: 700; }
