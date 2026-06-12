@@ -2010,3 +2010,43 @@ h1, h2, h3, .btn, .playcta, .tab, .nav__item, .banner__name, .match__team,
   box-shadow: 0 6px 0 #0d47a1, 0 10px 24px rgba(47,129,247,0.45);
 }
 .playcta:active { transform: translateY(4px); box-shadow: 0 2px 0 #0d47a1; }
+
+/* ════ S〜G色付きグレード ════ */
+.grades { display: inline-flex; gap: 5px; flex: 0 1 auto; flex-wrap: wrap; }
+.gr { display: inline-flex; align-items: center; gap: 2px; }
+.gr__lbl { font-size: 10px; color: var(--muted); }
+.gr__v {
+  font-family: var(--num);
+  font-weight: 700;
+  font-size: 14px;
+  width: 17px; text-align: center;
+  border-radius: 4px;
+  line-height: 1.3;
+}
+.gr__v--S { color: #fff; background: linear-gradient(135deg, #ff4d6d, #c81d4e); box-shadow: 0 0 6px rgba(255,77,109,0.5); }
+.gr__v--A { color: #ff7043; }
+.gr__v--B { color: #ffb300; }
+.gr__v--C { color: #66bb6a; }
+.gr__v--D { color: #42a5f5; }
+.gr__v--E { color: #7e9bb5; }
+.gr__v--F { color: #6b7682; }
+.gr__v--G { color: #4b535d; }
+
+/* ドラッグ打順 */
+.drag { position: relative; touch-action: pan-y; }
+.rrow__handle {
+  flex: 0 0 auto;
+  font-size: 20px;
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+  padding: 0 2px;
+  user-select: none;
+}
+.rrow--drag {
+  z-index: 20;
+  position: relative;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+  border-color: var(--accent);
+  background: var(--panel-2);
+}

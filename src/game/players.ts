@@ -249,16 +249,25 @@ export function blankCustomTeam(): Team {
   };
 }
 
-/** チーム総年俸（万円） */
+/** チームの全選手（一軍＋二軍。pitcher は rotation に含まれるため重複除去） */
+export function allPlayersOf(team: Team): Player[] {
+  const m = new Map<string, Player>();
+  for (const p of [...team.lineup, ...(team.rotation ?? [team.pitcher]), ...team.bullpen, ...team.bench, ...(team.farm ?? [])]) {
+    m.set(p.id, p);
+  }
+  return [...m.values()];
+}
+
+/** チーム総年俸（万円・支配下のみ） */
 export function payrollOf(team: Team): number {
-  const all = [...team.lineup, team.pitcher, ...team.bullpen, ...team.bench];
-  return all.reduce((a, p) => a + (p.salary ?? salaryFor(p)), 0);
+  return allPlayersOf(team)
+    .filter((p) => !p.ikusei)
+    .reduce((a, p) => a + (p.salary ?? salaryFor(p)), 0);
 }
 
 /** 外国人の人数 */
 export function foreignCount(team: Team): number {
-  const all = [...team.lineup, team.pitcher, ...team.bullpen, ...team.bench];
-  return all.filter((p) => p.foreign).length;
+  return allPlayersOf(team).filter((p) => p.foreign).length;
 }
 
 /** チーム内で名前が重複しないように振り直す */
@@ -279,18 +288,29 @@ export function generateTeam(rng: Rng, meta: { name: string; short: string }, st
   const lineup = FIELD_POSITIONS.map((pos) => makeBatter(rng, pos, strength));
   const pitcher = makePitcher(rng, strength);
 
-  // 控え野手: スタメンよりやや劣るが、守備・走力特化型が混ざる
-  const bench = Array.from({ length: 4 }, () => makeBatter(rng, rng.pick(FIELD_POSITIONS), strength - 6));
+  // 控え野手: 各ポジションをカバーできるよう7人
+  const benchPos: Position[] = ['捕', '一', '二', '遊', '左', '中', '右'];
+  const bench = benchPos.map((pos) => makeBatter(rng, pos, strength - 6));
 
-  // 救援投手: スタミナは低め。末尾（抑え）は球威が高い
+  // 救援投手6人: スタミナは低め。末尾（抑え）は球威が高い
   const bullpen = [
+    makeReliever(rng, strength - 6, 0),
     makeReliever(rng, strength - 4, 0),
-    makeReliever(rng, strength, 0),
+    makeReliever(rng, strength - 2, 2),
+    makeReliever(rng, strength, 2),
+    makeReliever(rng, strength + 2, 5), // セットアッパー
     makeReliever(rng, strength + 4, 8), // 抑え: 球速ボーナス
   ];
 
-  // 先発ローテーション（今日の先発＋控え2枚）と二軍・スカウト
-  const rotation = [pitcher, makePitcher(rng, strength - 3), makePitcher(rng, strength - 6)];
+  // 先発ローテーション6枚（1枚目が今日の先発）と二軍・スカウト
+  const rotation = [
+    pitcher,
+    makePitcher(rng, strength - 2),
+    makePitcher(rng, strength - 4),
+    makePitcher(rng, strength - 5),
+    makePitcher(rng, strength - 7),
+    makePitcher(rng, strength - 9),
+  ];
   const farm = makeFarm(rng, strength);
 
   dedupeNames([...lineup, ...rotation, ...bench, ...bullpen, ...farm], rng);
@@ -312,37 +332,58 @@ export function generateTeam(rng: Rng, meta: { name: string; short: string }, st
   };
 }
 
-/** 二軍を生成（若手中心、うち2人は育成契約） */
+/** 二軍を生成（若手中心・14人。うち4人は育成契約） */
 function makeFarm(rng: Rng, strength: number): Player[] {
-  const farm: Player[] = [
-    makeBatter(rng, rng.pick(FIELD_POSITIONS), strength - 10),
-    makeBatter(rng, rng.pick(FIELD_POSITIONS), strength - 12),
-    makeBatter(rng, rng.pick(FIELD_POSITIONS), strength - 14),
-    makePitcher(rng, strength - 10),
-    makeBatter(rng, rng.pick(FIELD_POSITIONS), strength - 16),
-    makePitcher(rng, strength - 16),
-  ];
+  const farm: Player[] = [];
+  // 野手8人・投手6人
+  for (let i = 0; i < 8; i++) farm.push(makeBatter(rng, rng.pick(FIELD_POSITIONS), strength - 8 - rng.int(0, 10)));
+  for (let i = 0; i < 6; i++) farm.push(makePitcher(rng, strength - 8 - rng.int(0, 10)));
   for (const p of farm) {
     p.age = 18 + rng.int(0, 6); // 二軍は若手
-    p.potential = stat(rng, 62, 22); // 伸びしろは大きめ
+    p.potential = stat(rng, 64, 22); // 伸びしろは大きめ
   }
-  farm[4].ikusei = true;
-  farm[5].ikusei = true;
+  // 末尾4人を育成契約に
+  for (let i = farm.length - 4; i < farm.length; i++) farm[i].ikusei = true;
   return farm;
 }
 
-/** 旧セーブデータにローテ・二軍・スカウト・調子を補完する */
+/** 旧セーブデータにローテ・二軍・スカウト・調子を補完し、拡張サイズへ拡充する */
 export function upgradeTeam(team: Team, rng: Rng): void {
-  if (!team.rotation || team.rotation.length === 0) {
-    team.rotation = [team.pitcher, makePitcher(rng, 48), makePitcher(rng, 45)];
-  }
-  if (!team.farm) team.farm = makeFarm(rng, 48);
+  const strength = 48;
+  if (!team.rotation || team.rotation.length === 0) team.rotation = [team.pitcher];
+  if (!team.farm) team.farm = [];
   if (!team.scout) team.scout = { name: makeName(rng), skill: stat(rng, 55, 20) };
   team.rotationIdx ??= 0;
+
+  // 拡張サイズへ不足分を補充
+  while (team.rotation.length < 6) team.rotation.push(makePitcher(rng, strength - team.rotation.length));
+  while (team.bullpen.length < 6) team.bullpen.push(makeReliever(rng, strength, team.bullpen.length >= 5 ? 6 : 0));
+  while (team.bench.length < 7) team.bench.push(makeBatter(rng, rng.pick(FIELD_POSITIONS), strength - 6));
+  while (team.farm.length < 14) {
+    const fp = team.farm.length % 2 === 0 ? makeBatter(rng, rng.pick(FIELD_POSITIONS), strength - 12) : makePitcher(rng, strength - 12);
+    fp.age = 18 + rng.int(0, 6);
+    fp.potential = stat(rng, 64, 22);
+    if (team.farm.length >= 10) fp.ikusei = true;
+    team.farm.push(fp);
+  }
+
+  dedupeNames([...team.lineup, ...team.rotation, ...team.bullpen, ...team.bench, ...team.farm], rng);
   for (const p of [...team.lineup, ...team.rotation, ...team.bullpen, ...team.bench, ...team.farm]) {
     p.condition ??= 2;
     p.rest ??= 0;
   }
+}
+
+/** 能力値（0-99）→ パワプロ風グレード S/A/B/C/D/E/F/G */
+export function grade(v: number): string {
+  if (v >= 90) return 'S';
+  if (v >= 80) return 'A';
+  if (v >= 70) return 'B';
+  if (v >= 60) return 'C';
+  if (v >= 50) return 'D';
+  if (v >= 40) return 'E';
+  if (v >= 25) return 'F';
+  return 'G';
 }
 
 /** ポジション分類（UI色分け用）: p=投手 / c=捕手 / if=内野 / of=外野 / dh=指名打者 */

@@ -65,13 +65,15 @@ describe('simulateGame', () => {
     }
   });
 
-  it('チームに控え野手とブルペンが生成される', () => {
+  it('チームに控え野手・ブルペン・ローテ・二軍が生成される', () => {
     const rng = createRng(1);
     const { away, home } = generateMatchup(rng);
-    expect(away.bench.length).toBe(4);
-    expect(away.bullpen.length).toBe(3);
-    expect(home.bench.length).toBe(4);
-    expect(home.bullpen.length).toBe(3);
+    expect(away.bench.length).toBe(7);
+    expect(away.bullpen.length).toBe(6);
+    expect(away.rotation?.length).toBe(6);
+    expect((away.farm?.length ?? 0)).toBeGreaterThanOrEqual(12);
+    expect(home.bench.length).toBe(7);
+    expect(home.bullpen.length).toBe(6);
     for (const p of away.bullpen) expect(p.pitches).toBeDefined();
   });
 

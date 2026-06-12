@@ -67,6 +67,8 @@ export interface LeagueState {
   staminaAt?: number;
   /** 再配分チケット（選手の能力を振り直すのに1枚必要） */
   tickets?: number;
+  /** チケットの最終更新時刻（epoch ms） */
+  ticketAt?: number;
   /** 二軍の通算成績（一軍とは別集計） */
   farmBat?: Record<string, { g: number; ab: number; h: number; hr: number; rbi: number }>;
   farmPit?: Record<string, { g: number; outs: number; runs: number; k: number }>;
@@ -111,9 +113,37 @@ export function spendStamina(league: LeagueState): boolean {
   return true;
 }
 
+export const TICKET_MAX = 5;
+/** チケット1枚の時間回復（30分） */
+export const TICKET_REGEN_MS = 30 * 60 * 1000;
+
+/** 経過時間ぶんチケットを回復（上限 TICKET_MAX まで） */
+export function refreshTickets(league: LeagueState): void {
+  const now = Date.now();
+  league.tickets ??= 3;
+  league.ticketAt ??= now;
+  if (league.tickets >= TICKET_MAX) {
+    league.ticketAt = now;
+    return;
+  }
+  const gained = Math.floor((now - league.ticketAt) / TICKET_REGEN_MS);
+  if (gained > 0) {
+    league.tickets = Math.min(TICKET_MAX, league.tickets + gained);
+    league.ticketAt = league.tickets >= TICKET_MAX ? now : league.ticketAt + gained * TICKET_REGEN_MS;
+  }
+}
+
+/** 次の1枚回復までの残りミリ秒（満タンなら0） */
+export function nextTicketIn(league: LeagueState): number {
+  if ((league.tickets ?? 0) >= TICKET_MAX) return 0;
+  return Math.max(0, TICKET_REGEN_MS - (Date.now() - (league.ticketAt ?? Date.now())));
+}
+
 /** 再配分チケットを1消費。足りなければ false */
 export function spendTicket(league: LeagueState): boolean {
+  refreshTickets(league);
   if ((league.tickets ?? 0) < 1) return false;
+  if ((league.tickets ?? 0) >= TICKET_MAX) league.ticketAt = Date.now();
   league.tickets = (league.tickets ?? 0) - 1;
   return true;
 }
@@ -132,6 +162,7 @@ export function newLeague(): LeagueState {
     stamina: STAMINA_MAX,
     staminaAt: Date.now(),
     tickets: 3,
+    ticketAt: Date.now(),
     farmBat: {},
     farmPit: {},
   };
@@ -151,6 +182,7 @@ export function loadLeague(): LeagueState | null {
     parsed.stamina ??= STAMINA_MAX;
     parsed.staminaAt ??= Date.now();
     parsed.tickets ??= 3;
+    parsed.ticketAt ??= Date.now();
     parsed.farmBat ??= {};
     parsed.farmPit ??= {};
     const mig = createRng(7777);

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Player, Team } from '../game/types';
 import {
   CONDITION_MARKS,
   CONDITION_LABELS,
+  grade,
   posClass,
   playerValue,
   registeredCount,
@@ -31,10 +32,136 @@ export function CondMark({ p }: { p: Player }) {
   );
 }
 
-function statLine(p: Player): string {
-  return p.pitches
-    ? `球${p.pitches.velocity} 制${p.pitches.control} ス${p.pitches.stamina}`
-    : `ミ${p.bats.meet} パ${p.bats.power} 走${p.bats.speed} 守${p.bats.defense}`;
+/** 1能力の色付きグレード（S赤〜G灰） */
+function G({ label, v }: { label: string; v: number }) {
+  const g = grade(v);
+  return (
+    <span className="gr">
+      <span className="gr__lbl">{label}</span>
+      <span className={`gr__v gr__v--${g}`}>{g}</span>
+    </span>
+  );
+}
+
+/** 選手の能力グレード一覧（打者4・投手3） */
+export function StatGrades({ p }: { p: Player }) {
+  return (
+    <span className="grades">
+      {p.pitches ? (
+        <>
+          <G label="球" v={p.pitches.velocity} />
+          <G label="制" v={p.pitches.control} />
+          <G label="ス" v={p.pitches.stamina} />
+        </>
+      ) : (
+        <>
+          <G label="ミ" v={p.bats.meet} />
+          <G label="パ" v={p.bats.power} />
+          <G label="走" v={p.bats.speed} />
+          <G label="守" v={p.bats.defense} />
+        </>
+      )}
+    </span>
+  );
+}
+
+/** ドラッグで浮かせて自由に並べ替えできる打順リスト */
+function DragLineup({
+  team,
+  onChange,
+  posSwap,
+  setPosSwap,
+}: {
+  team: Team;
+  onChange: () => void;
+  posSwap: number | null;
+  setPosSwap: (n: number | null) => void;
+}) {
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragY, setDragY] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
+  const geom = useRef({ top: 0, rowH: 56, startY: 0 });
+
+  const onDown = (e: React.PointerEvent, i: number) => {
+    const list = listRef.current;
+    if (!list) return;
+    const rows = list.querySelectorAll<HTMLElement>('.rrow');
+    const rect = list.getBoundingClientRect();
+    geom.current = {
+      top: rect.top,
+      rowH: rows[0] ? rows[0].offsetHeight + 5 : 56,
+      startY: e.clientY,
+    };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setDragIdx(i);
+    setDragY(0);
+  };
+
+  const onMove = (e: React.PointerEvent) => {
+    if (dragIdx === null) return;
+    e.preventDefault();
+    const { top, rowH, startY } = geom.current;
+    setDragY(e.clientY - startY);
+    const rel = e.clientY - top;
+    let target = Math.floor(rel / rowH);
+    target = Math.max(0, Math.min(team.lineup.length - 1, target));
+    if (target !== dragIdx) {
+      const [moved] = team.lineup.splice(dragIdx, 1);
+      team.lineup.splice(target, 0, moved);
+      setDragIdx(target);
+      geom.current.startY = e.clientY; // 基準点を更新して指追従を保つ
+      setDragY(0);
+      onChange();
+    }
+  };
+
+  const onUp = () => {
+    if (dragIdx === null) return;
+    setDragIdx(null);
+    setDragY(0);
+    onChange();
+  };
+
+  return (
+    <div className="drag" ref={listRef} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+      {team.lineup.map((p, i) => (
+        <div
+          key={p.id}
+          className={`rrow ${dragIdx === i ? 'rrow--drag' : ''}`}
+          style={dragIdx === i ? { transform: `translateY(${dragY}px) scale(1.03)` } : undefined}
+        >
+          <span
+            className="rrow__handle"
+            onPointerDown={(e) => onDown(e, i)}
+            title="ドラッグで並べ替え"
+          >
+            ⠿
+          </span>
+          <span className="rrow__no">{i + 1}</span>
+          <button
+            className={`rrow__pos ${posSwap === i ? 'rrow__pos--sel' : ''}`}
+            onClick={() => {
+              if (posSwap === null) setPosSwap(i);
+              else {
+                const a = team.lineup[posSwap];
+                const b = team.lineup[i];
+                const tmp = a.position;
+                a.position = b.position;
+                b.position = tmp;
+                setPosSwap(null);
+                onChange();
+              }
+            }}
+          >
+            <PosBadge pos={p.position} />
+          </button>
+          <CondMark p={p} />
+          <span className="rrow__name">{p.name}</span>
+          <StatGrades p={p} />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 interface Props {
@@ -52,10 +179,6 @@ export function RosterEditor({ league, team, onChange, onClose }: Props) {
   const [posSwap, setPosSwap] = useState<number | null>(null);
   const [tradeMine, setTradeMine] = useState<Player | null>(null);
   const [tradeMsg, setTradeMsg] = useState('');
-
-  const swap = <T,>(arr: T[], i: number, j: number) => {
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  };
 
   return (
     <section className="roster-ed">
@@ -76,42 +199,16 @@ export function RosterEditor({ league, team, onChange, onClose }: Props) {
 
       {tab === '打順' && (
         <div>
-          <p className="roster-ed__hint">↑↓で打順入替、ポジションをタップで2人の守備位置を交換、⇄で控えと入替</p>
-          {team.lineup.map((p, i) => (
-            <div key={p.id} className="rrow">
-              <span className="rrow__no">{i + 1}</span>
-              <button
-                className={`rrow__pos ${posSwap === i ? 'rrow__pos--sel' : ''}`}
-                onClick={() => {
-                  if (posSwap === null) setPosSwap(i);
-                  else {
-                    const a = team.lineup[posSwap];
-                    const b = team.lineup[i];
-                    const tmp = a.position;
-                    a.position = b.position;
-                    b.position = tmp;
-                    setPosSwap(null);
-                    onChange();
-                  }
-                }}
-              >
-                <PosBadge pos={p.position} />
-              </button>
-              <CondMark p={p} />
-              <span className="rrow__name">{p.name}</span>
-              <span className="rrow__stats">{statLine(p)}</span>
-              <button className="rrow__btn" disabled={i === 0} onClick={() => { swap(team.lineup, i, i - 1); onChange(); }}>↑</button>
-              <button className="rrow__btn" disabled={i === 8} onClick={() => { swap(team.lineup, i, i + 1); onChange(); }}>↓</button>
-            </div>
-          ))}
-          <h3 className="roster-ed__sub">控え（ベンチ）</h3>
+          <p className="roster-ed__hint">⠿をドラッグで打順を自由に並べ替え。ポジションをタップで2人の守備位置を交換、⇄で控えと入替</p>
+          <DragLineup team={team} onChange={onChange} posSwap={posSwap} setPosSwap={setPosSwap} />
+          <h3 className="roster-ed__sub">控え（ベンチ {team.bench.length}人）</h3>
           {team.bench.map((p, bi) => (
             <div key={p.id} className="rrow">
               <span className="rrow__no" />
               <PosBadge pos={p.position} />
               <CondMark p={p} />
               <span className="rrow__name">{p.name}</span>
-              <span className="rrow__stats">{statLine(p)}</span>
+              <StatGrades p={p} />
               <select
                 className="rrow__sel"
                 value=""
@@ -149,7 +246,7 @@ export function RosterEditor({ league, team, onChange, onClose }: Props) {
               <PosBadge pos="投" />
               <CondMark p={p} />
               <span className="rrow__name">{p.name}</span>
-              <span className="rrow__stats">{statLine(p)}</span>
+              <StatGrades p={p} />
               <span className={`rrow__rest ${p.rest ? 'rrow__rest--ng' : ''}`}>{p.rest ? `休${p.rest}` : '可'}</span>
               <button
                 className="rrow__btn"
@@ -174,7 +271,7 @@ export function RosterEditor({ league, team, onChange, onClose }: Props) {
               <PosBadge pos="投" />
               <CondMark p={p} />
               <span className="rrow__name">{p.name}{i === team.bullpen.length - 1 ? '（抑え）' : ''}</span>
-              <span className="rrow__stats">{statLine(p)}</span>
+              <StatGrades p={p} />
               <span className={`rrow__rest ${p.rest ? 'rrow__rest--ng' : ''}`}>{p.rest ? `休${p.rest}` : '可'}</span>
             </div>
           ))}
@@ -196,7 +293,7 @@ export function RosterEditor({ league, team, onChange, onClose }: Props) {
                 {p.ikusei && <span className="badge-ikusei">育成</span>}
                 <span className="rrow__age">{p.age}歳</span>
               </span>
-              <span className="rrow__stats">{statLine(p)}</span>
+              <StatGrades p={p} />
               {p.ikusei ? (
                 <button
                   className="rrow__btn"
@@ -247,7 +344,7 @@ export function RosterEditor({ league, team, onChange, onClose }: Props) {
                 <button key={p.id} className="rrow rrow--btn" onClick={() => setTradeMine(p)}>
                   <PosBadge pos={p.position} />
                   <span className="rrow__name">{p.name}</span>
-                  <span className="rrow__stats">{statLine(p)}</span>
+                  <StatGrades p={p} />
                   <span className="rrow__value">価値{playerValue(p)}</span>
                 </button>
               ))}
@@ -283,7 +380,7 @@ export function RosterEditor({ league, team, onChange, onClose }: Props) {
                     <span className="rrow__team">{t.shortName}</span>
                     <PosBadge pos={p.position} />
                     <span className="rrow__name">{p.name}</span>
-                    <span className="rrow__stats">{statLine(p)}</span>
+                    <StatGrades p={p} />
                     <span className="rrow__value">価値{playerValue(p)}</span>
                   </button>
                 ))}
@@ -314,7 +411,7 @@ export function RosterEditor({ league, team, onChange, onClose }: Props) {
                   {player.name}
                   <span className="rrow__age">{player.age}歳</span>
                 </span>
-                <span className="rrow__stats">{statLine(player)}</span>
+                <StatGrades p={player} />
               </button>
             ))
           )}

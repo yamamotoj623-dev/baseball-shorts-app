@@ -8,6 +8,8 @@ import {
   loadLeague,
   newLeague,
   nextStaminaIn,
+  nextTicketIn,
+  refreshTickets,
   progressTick,
   refreshStamina,
   resetLeague,
@@ -20,7 +22,7 @@ import {
   STAMINA_MAX,
   type LeagueState,
 } from './game/league';
-import { generateDraftPool, salaryFor, teamColor, teamOverall } from './game/players';
+import { generateDraftPool, salaryFor, teamColor, teamOverall, upgradeTeam } from './game/players';
 import { createRng } from './game/rng';
 import { Scoreboard } from './ui/Scoreboard';
 import { Diamond } from './ui/Diamond';
@@ -166,6 +168,8 @@ export function App() {
         return ov.bat + ov.pit;
       };
       for (let i = 1; i < league.teams.length; i++) if (score(league.teams[i]) < score(league.teams[wi])) wi = i;
+      custom.rotation = [custom.pitcher];
+      upgradeTeam(custom, createRng((Math.random() * 2 ** 31) >>> 0)); // ローテ6/ブルペン6/ベンチ7/二軍14へ充実
       league.teams[wi] = custom;
       setMyTeam(league, custom.shortName);
       league.news = [`🏟 ${custom.name} がリーグに参入！`, ...(league.news ?? [])].slice(0, 8);
@@ -316,6 +320,7 @@ export function App() {
   useEffect(() => {
     const id = window.setInterval(() => {
       refreshStamina(league);
+      refreshTickets(league);
       setLeague({ ...league });
     }, 60000);
     return () => clearInterval(id);
@@ -327,6 +332,7 @@ export function App() {
   };
   const stamina = league.stamina ?? STAMINA_MAX;
   const staminaWait = nextStaminaIn(league);
+  const ticketWait = nextTicketIn(league);
   const tickets = league.tickets ?? 0;
   const inSetup = screen === 'select' || screen === 'build' || screen === 'draft';
   const myColor = myTeam ? teamColor(myTeam) : '#2f81f7';
@@ -352,7 +358,7 @@ export function App() {
               <span className="topbar__logo">劇場ペナント</span>
               <span className="topbar__res">🏦 {myTeam.funds != null ? (myTeam.funds / 10000).toFixed(1) : '-'}億</span>
               <span className="topbar__res">⚡ {stamina}/{STAMINA_MAX}</span>
-              <span className="topbar__res">🎟 {tickets}</span>
+              <span className="topbar__res">🎟 {tickets}{tickets < 5 && ticketWait > 0 ? ` (${Math.ceil(ticketWait / 60000)}分)` : ''}</span>
             </div>
           )}
 
