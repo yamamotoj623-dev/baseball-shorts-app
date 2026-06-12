@@ -66,6 +66,14 @@ export function TeamBuilder({ onComplete, onCancel }: Props) {
 
   const randomizeAll = () => {
     const rng = createRng((Math.random() * 2 ** 31) >>> 0);
+    // 助っ人外国人を自動で（野手2・投手1）
+    for (const p of allPlayers) p.foreign = false;
+    const fielders = [...team.lineup, ...team.bench];
+    const pitchers = [team.pitcher, ...team.bullpen];
+    const pick = <T,>(arr: T[]) => arr[Math.floor(rng.next() * arr.length)];
+    pick(fielders).foreign = true;
+    pick(fielders).foreign = true;
+    pick(pitchers).foreign = true;
     for (const p of allPlayers) randomizePlayer(p, rng);
     refresh();
   };

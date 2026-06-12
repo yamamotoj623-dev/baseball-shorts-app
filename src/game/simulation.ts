@@ -803,12 +803,12 @@ export function simulateGame(away: Team, home: Team, seed: number = Date.now(), 
     const top = playHalfInning(awaySide, homeSide, inning, 'top', score, 0, rng, events, mem, season);
     awayByInning[inning - 1] = top.runs;
     awayHits += top.hits;
-    pushChangeLine(events, inning, 'top', away, home, score);
-
+    // 9回以降ホームがリードしていれば裏は行わず終了（チェンジ行は出さない）
     if (inning >= 9 && score[1] > score[0]) {
       homeByInning[inning - 1] = homeByInning[inning - 1] ?? 0;
       break;
     }
+    pushChangeLine(events, inning, 'top', away, home, score);
 
     const bot = playHalfInning(homeSide, awaySide, inning, 'bottom', score, 1, rng, events, mem, season);
     homeByInning[inning - 1] = bot.runs;
@@ -817,9 +817,8 @@ export function simulateGame(away: Team, home: Team, seed: number = Date.now(), 
       walkoff = true;
       break;
     }
+    if (inning >= 9 && score[0] !== score[1]) break; // 決着＝チェンジ行なしで終了
     pushChangeLine(events, inning, 'bottom', away, home, score);
-
-    if (inning >= 9 && score[0] !== score[1]) break;
 
     inning += 1;
   }

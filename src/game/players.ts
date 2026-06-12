@@ -17,14 +17,18 @@ const GIVEN_NAMES = [
 
 /** 架空チーム名のプール（地名 + 愛称 + 球団カラー） */
 const TEAM_POOL: { name: string; short: string; color: string }[] = [
-  { name: 'ノーザン・ベアーズ', short: 'BEARS', color: '#8a5a2b' },
-  { name: 'シーサイド・マリナーズ', short: 'MARI', color: '#1f6feb' },
-  { name: 'メトロ・ファルコンズ', short: 'FALC', color: '#6e7681' },
-  { name: 'グリーンフィールド・タイタンズ', short: 'TITA', color: '#2ea043' },
-  { name: 'サンダー・ドラゴンズ', short: 'DRGN', color: '#d29922' },
-  { name: 'クリムゾン・ウルブズ', short: 'WOLV', color: '#da3633' },
-  { name: 'リバーサイド・キングス', short: 'KING', color: '#8957e5' },
-  { name: 'スターライト・コメッツ', short: 'COMT', color: '#39c5cf' },
+  { name: '東京グランツ', short: 'TYO', color: '#c9962f' },
+  { name: '浪速タイガーズ', short: 'NAN', color: '#f2c200' },
+  { name: '中部ドラゴンズ', short: 'CHU', color: '#0b3da0' },
+  { name: '広島カープス', short: 'HIR', color: '#da3633' },
+  { name: '東京スパローズ', short: 'TSW', color: '#0a7d4f' },
+  { name: '横浜ベイズ', short: 'YOK', color: '#1f6feb' },
+  { name: '福岡ホークズ', short: 'FUK', color: '#d4a017' },
+  { name: '北海ファイターズ', short: 'HOK', color: '#5b6770' },
+  { name: '房総マリナーズ', short: 'BSO', color: '#111418' },
+  { name: '東北イーグルズ', short: 'TOH', color: '#8a0f1a' },
+  { name: '武蔵ライオンズ', short: 'MSI', color: '#0a4ea0' },
+  { name: '摂津バッファローズ', short: 'STU', color: '#1a2740' },
 ];
 
 /** 球団カラー（カスタム球団は略称から安定したハッシュで決まる） */
@@ -64,9 +68,9 @@ export const FOREIGN_LIMIT = 4; // 外国人枠（NPB風）
 export const PAYROLL_CAP = 300000; // 年俸総額キャップ 30億円（万円単位）
 
 /** 特殊能力（打者）と試合中の効果 */
-export const BATTER_ABILITIES = ['チャンス◎', 'パワーヒッター', 'アベレージヒッター', '盗塁王', '守備職人', '対左投手◎'] as const;
+export const BATTER_ABILITIES = ['チャンス◎', 'パワーヒッター', 'アベレージヒッター', '盗塁王', '守備職人', '対左投手◎', '満塁男', 'サヨナラ男', '切り込み隊長', '広角打法', '流し打ち', '選球眼', '威圧感', 'ムード○', '内野安打○', 'アーチスト'] as const;
 /** 特殊能力（投手） */
-export const PITCHER_ABILITIES = ['火の玉ストレート', '精密機械', '鉄腕', '勝負強い', '尻上がり'] as const;
+export const PITCHER_ABILITIES = ['火の玉ストレート', '精密機械', '鉄腕', '勝負強い', '尻上がり', 'キレ○', '奪三振', '重い球', '打たれ強い', 'クイック○', '牽制○', 'ノビ○', '低め○', 'ポーカーフェイス'] as const;
 
 /** 平均 mid、ばらつき spread で 1〜99 にクランプした能力値 */
 function stat(rng: Rng, mid: number, spread: number): number {
@@ -77,7 +81,7 @@ function stat(rng: Rng, mid: number, spread: number): number {
 }
 
 function makeName(rng: Rng): string {
-  return `${rng.pick(FAMILY_NAMES)}${rng.pick(GIVEN_NAMES)}`;
+  return rng.pick(FAMILY_NAMES);
 }
 
 // セッションごとに一意なプレフィックスを付け、保存済みリーグの選手IDと
@@ -122,7 +126,7 @@ const ADJACENT: Partial<Record<Position, Position[]>> = {
   指: ['一', '左', '右'],
 };
 
-const PITCH_NAMES = ['ストレート', 'ツーシーム', 'カットボール', 'スライダー', 'カーブ', 'フォーク', 'チェンジアップ', 'シンカー', 'スプリット', 'スラーブ'];
+const PITCH_NAMES = ['ストレート', 'フォーシーム', 'ツーシーム', 'カットボール', 'シュート', 'スライダー', 'スイーパー', 'カーブ', 'ナックルカーブ', 'スラーブ', 'フォーク', 'スプリット', 'チェンジアップ', 'サークルチェンジ', 'シンカー', 'パワーカーブ', 'ナックル', 'ジャイロボール'];
 
 /** 守備適性を生成（メイン100、隣接に中程度、まれに器用） */
 function makeApt(rng: Rng, main: Position): Partial<Record<Position, number>> {
@@ -341,12 +345,16 @@ export function foreignCount(team: Team): number {
 function dedupeNames(players: Player[], rng: Rng): void {
   const used = new Set<string>();
   for (const p of players) {
+    const base = p.name;
+    let name = base;
     let guard = 0;
-    while (used.has(p.name) && guard < 50) {
-      p.name = makeName(rng);
+    while (used.has(name) && guard < 80) {
+      // 重複したら下の名前の頭一文字を付ける（外国人は登録名）
+      name = p.foreign ? `${base}・${rng.pick(FOREIGN_FIRST)}` : base + rng.pick(GIVEN_NAMES).slice(0, 1);
       guard += 1;
     }
-    used.add(p.name);
+    p.name = name;
+    used.add(name);
   }
 }
 
@@ -510,7 +518,7 @@ export function posClass(pos: Position): 'p' | 'c' | 'if' | 'of' | 'dh' {
 }
 
 /** 調子マーク（パワプロ風 5段階） */
-export const CONDITION_MARKS = ['⤵', '↘', '→', '↗', '⤴'] as const;
+export const CONDITION_MARKS = ['😫', '😟', '😐', '😀', '🔥'] as const;
 export const CONDITION_LABELS = ['絶不調', '不調', '普通', '好調', '絶好調'] as const;
 
 /** トレード・現役ドラフトで使う選手価値（能力＋若さ） */
